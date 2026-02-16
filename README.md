@@ -43,6 +43,113 @@ For local development in this repository:
 npm link
 ```
 
+## Team setup guide
+
+### 1. Prerequisites
+
+- `git` 2.37+ (worktree support).
+- Node.js `18+` and `npm`.
+- Optional: `fzf` for interactive `linchpin wt cd`.
+- A local WordPress environment (Studio, `wp-env`, or LocalWP).
+- Your plugin repository cloned under `~/Documents/GitHub/<plugin-name>`.
+
+### 2. Install CLI
+
+```bash
+npm install -g @linchpin/worktree-utils
+```
+
+Confirm install:
+
+```bash
+linchpin --help
+linchpin wt help
+```
+
+### 3. Initialize project config
+
+From the plugin repo root (base worktree):
+
+```bash
+linchpin wt config init --plugin-slug <plugin-slug>
+```
+
+This creates `.linchpin.json`. Edit it so `wordpress.environments` matches your local machine paths.
+
+### 4. Configure WordPress plugin targets
+
+Set each environment path to the plugin location inside that WordPress install:
+
+- Studio: `/path/to/studio/wp-content/plugins/<plugin-slug>`
+- `wp-env`: `/path/to/project/.wp-env/.../plugins/<plugin-slug>`
+- LocalWP: `/path/to/Local Sites/<site>/app/public/wp-content/plugins/<plugin-slug>`
+
+Use absolute paths. `~` is supported.
+
+### 5. Create and switch worktrees
+
+Create a worktree for a new branch:
+
+```bash
+linchpin wt new feature/my-change
+```
+
+Or attach an existing remote branch:
+
+```bash
+linchpin wt get feature/existing-branch
+```
+
+Point your WordPress environment to that worktree:
+
+```bash
+linchpin wt switch feature/my-change --env studio
+```
+
+### 6. Verify active target
+
+Check current worktree metadata:
+
+```bash
+linchpin wt current --link --env studio
+```
+
+List all worktrees:
+
+```bash
+linchpin wt ls
+```
+
+### 7. Daily review workflow
+
+1. Open or create a worktree for the branch under review.
+2. Run `linchpin wt switch --env <environment>` to repoint the plugin symlink.
+3. Test the branch in the shared WordPress install.
+4. Repeat for the next worktree/branch.
+5. Clean up with `linchpin wt del` when the branch is merged.
+
+### 8. Shell helpers (recommended)
+
+Use command substitution for path-returning commands:
+
+```bash
+cd "$(linchpin wt cd)"
+cd "$(linchpin wt home)"
+```
+
+### 9. Troubleshooting
+
+- `Missing .linchpin.json`:
+  Run `linchpin wt config init` in the base worktree.
+- `Environment '<name>' is not configured`:
+  Add the environment key in `.linchpin.json`.
+- `Target exists and is not a symlink`:
+  Use `linchpin wt switch ... --force` only if replacing the directory is intended.
+- `Worktree has uncommitted changes` on delete:
+  Commit/stash first, or force with `linchpin wt del --force`.
+- `fzf is not installed`:
+  Install `fzf` or pass a branch/path directly to `linchpin wt cd <ref>`.
+
 ## Command surface
 
 ```bash
