@@ -242,7 +242,33 @@ Hook environment variables include `LINCHPIN_BRANCH` and `LINCHPIN_WORKTREE`.
 ## Development
 
 ```bash
+npm install
 npm test
 ```
+
+Husky enforces Conventional Commits on `commit-msg`:
+
+```bash
+npm run prepare
+```
+
+Example commit format:
+
+```text
+feat(LINCHPIN-4850): add release automation
+```
+
+## Releases
+
+Releases are managed by `release-please` in GitHub Actions:
+
+- Pushes to `main` or `master` run `.github/workflows/release-please.yml`.
+- `release-please` opens/updates a release PR from conventional commits.
+- When the release PR is merged, a GitHub release/tag is created.
+- If a release is created, the workflow publishes `@linchpin/worktree-utils` to npm.
+
+Repository secret required:
+
+- `NPM_TOKEN`: npm automation token with publish access for `@linchpin/worktree-utils`.
 
 ![Linchpin an award winning digital agency building immersive, high performing web experiences](https://assets.linchpin.com/github/linchpin-github-repo-banner.jpg)
