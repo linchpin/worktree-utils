@@ -1,0 +1,26 @@
+{
+  "name": "@linchpin/worktree-utils",
+  "version": "0.1.0",
+  "description": "Linchpin worktree CLI for WordPress plugin review workflows",
+  "license": "MIT",
+  "type": "commonjs",
+  "bin": {
+    "linchpin": "bin/linchpin.js"
+  },
+  "files": [
+    "bin",
+    "src"
+  ],
+  "scripts": {
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "git",
+    "worktree",
+    "wordpress",
+    "linchpin"
+  ]
+}
