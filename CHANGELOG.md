@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.7](https://github.com/linchpin/worktree-utils/compare/v1.0.6...v1.0.7) (2026-02-17)
+
+
+### Miscellaneous Chores 🧹
+
+* **NO-TASK:** Minor readme refinement ([a6f5503](https://github.com/linchpin/worktree-utils/commit/a6f5503632ed6ed8a42c279a2b9eb33e88ba68f2))
+
 ## [1.0.6](https://github.com/linchpin/worktree-utils/compare/v1.0.5...v1.0.6) (2026-02-17)
 
 
