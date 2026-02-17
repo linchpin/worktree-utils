@@ -1,7 +1,7 @@
 <table width="100%">
   <tr>
     <td align="left" width="70%">
-      <strong>Linchpin Worktree CLI</strong><br />
+      <strong>Linchpin CLI - Worktree Utils</strong><br />
       Git worktree tooling for WordPress plugin review workflows with Codex and other agents.
     </td>
     <td align="center" width="30%">
@@ -22,7 +22,7 @@
 
 ## What is this CLI?
 
-`linchpin wt` is a git worktree helper tuned for WordPress plugin development and QA.
+`linchpin wt` is a git worktree helper tuned for WordPress plugin development alongside Agent support.
 
 It is designed for this setup:
 
@@ -48,7 +48,7 @@ npm link
 ### 1. Prerequisites
 
 - `git` 2.37+ (worktree support).
-- Node.js `18+` and `npm`.
+- Node.js `20+` and `npm`.
 - Optional: `fzf` for interactive `linchpin wt cd`.
 - A local WordPress environment (Studio, `wp-env`, or LocalWP).
 - Your plugin repository cloned under `~/Documents/GitHub/<plugin-name>`.
