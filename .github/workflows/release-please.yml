@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - master
   workflow_dispatch:
 
 permissions:
@@ -24,7 +23,6 @@ jobs:
         uses: googleapis/release-please-action@v4
         with:
           release-type: node
-          package-name: "@linchpin/worktree-utils"
 
   publish-npm:
     runs-on: ubuntu-latest

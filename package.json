@@ -13,16 +13,16 @@
   ],
   "scripts": {
     "test": "node --test",
-    "prepare": "husky install",
+    "prepare": "husky",
     "commitlint": "commitlint --edit"
   },
   "devDependencies": {
-    "@commitlint/cli": "^19.8.0",
-    "@commitlint/config-conventional": "^19.8.0",
-    "husky": "^8.0.3"
+    "@commitlint/cli": "^20.4.1",
+    "@commitlint/config-conventional": "^20.4.1",
+    "husky": "^9.1.7"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   },
   "keywords": [
     "git",
