@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.4](https://github.com/linchpin/worktree-utils/compare/v1.0.3...v1.0.4) (2026-02-17)
+
+
+### Bug Fixes 🐛
+
+* **NO-TASK:** Skip husky in CI ([8a04437](https://github.com/linchpin/worktree-utils/commit/8a04437f0f312750a2d599dc5b98d539d9a806c6))
+
 ## [1.0.3](https://github.com/linchpin/worktree-utils/compare/v1.0.2...v1.0.3) (2026-02-17)
 
 
