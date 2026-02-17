@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.3](https://github.com/linchpin/worktree-utils/compare/v1.0.2...v1.0.3) (2026-02-17)
+
+
+### Bug Fixes 🐛
+
+* **NO-TASK:** Permissions issue ([793d5a2](https://github.com/linchpin/worktree-utils/commit/793d5a2bfb3b0189a7f779f3b16a618ee85bb0f4))
+
 ## [1.0.2](https://github.com/linchpin/worktree-utils/compare/v1.0.1...v1.0.2) (2026-02-17)
 
 
