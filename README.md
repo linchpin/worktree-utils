@@ -7,7 +7,7 @@
     <td align="center" width="30%">
       <img src="https://img.shields.io/badge/Status-Active%20Development-2ea44f" alt="Status: Active Development" />
       <img src="https://img.shields.io/badge/Maintained%3F-yes-green.svg" alt="Maintained: yes" />
-      <img src="https://img.shields.io/badge/Node-%3E%3D18-339933" alt="Node >= 18" />
+      <img src="https://img.shields.io/badge/Node-%3E%3D18-339933" alt="Node >= 20" />
     </td>
   </tr>
   <tr>
