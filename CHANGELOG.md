@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.5](https://github.com/linchpin/worktree-utils/compare/v1.0.4...v1.0.5) (2026-02-17)
+
+
+### Bug Fixes 🐛
+
+* **NO-TASK:** Adjust husky for npm publish ([259c938](https://github.com/linchpin/worktree-utils/commit/259c9385992ff7f69352e3e31bee8946af823ba5))
+
 ## [1.0.4](https://github.com/linchpin/worktree-utils/compare/v1.0.3...v1.0.4) (2026-02-17)
 
 
