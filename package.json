@@ -1,7 +1,7 @@
 {
-  "name": "@linchpin/worktree-utils",
+  "name": "@linchpinagency/worktree-utils",
   "version": "1.0.4",
-  "description": "Linchpin worktree CLI for WordPress plugin review workflows",
+  "description": "A library of CLI commands to help manage jumping between worktrees when developing for WordPress using Studio, LocalWP or wp-env and Agentic workers",
   "license": "MIT",
   "type": "commonjs",
   "bin": {
