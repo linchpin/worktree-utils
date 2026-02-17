@@ -267,8 +267,4 @@ Releases are managed by `release-please` in GitHub Actions:
 - When the release PR is merged, a GitHub release/tag is created.
 - If a release is created, the workflow publishes `@linchpin/worktree-utils` to npm.
 
-Repository secret required:
-
-- `NPM_TOKEN`: npm automation token with publish access for `@linchpin/worktree-utils`.
-
 ![Linchpin an award winning digital agency building immersive, high performing web experiences](https://assets.linchpin.com/github/linchpin-github-repo-banner.jpg)
