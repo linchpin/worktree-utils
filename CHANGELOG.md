@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.6](https://github.com/linchpin/worktree-utils/compare/v1.0.5...v1.0.6) (2026-02-17)
+
+
+### Bug Fixes 🐛
+
+* **NO-TASK:** Revert to old npm org, until rename completes ([80c5d64](https://github.com/linchpin/worktree-utils/commit/80c5d646e3d261f12ef75f0aae5694ebce41fe05))
+
 ## [1.0.5](https://github.com/linchpin/worktree-utils/compare/v1.0.4...v1.0.5) (2026-02-17)
 
 
