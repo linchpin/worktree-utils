@@ -6,7 +6,7 @@
     "url": "https://github.com/linchpin/worktree-utils"
   },
   "description": "A library of CLI commands to help manage jumping between worktrees when developing for WordPress using Studio, LocalWP or wp-env and Agentic workers",
-  "license": "MIT",
+  "license": "GPL-2.0-only",
   "type": "commonjs",
   "bin": {
     "linchpin": "bin/linchpin.js"

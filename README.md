@@ -5,10 +5,16 @@
       Git worktree tooling for WordPress plugin review workflows with Codex, Claude Code, Cursor, Conductor and other agents.
     </td>
     <td align="center" width="30%">
-      <img src="https://badge.fury.io/js/@linchpinagency%2Fworktree-utils.svg" alt="npm install" />
-      <img src="https://img.shields.io/badge/Status-Active%20Development-2ea44f" alt="Status: Active Development" />
-      <img src="https://img.shields.io/badge/Maintained%3F-yes-green.svg" alt="Maintained: yes" />
-      <img src="https://img.shields.io/badge/Node-%3E%3D18-339933" alt="Node >= 20" />
+      <img src="https://badge.fury.io/js/@linchpinagency%2Fworktree-utils.svg" alt="npm version" />
+      <img src="https://img.shields.io/github/license/linchpin/worktree-utils" alt="License" />
+      <img src="https://img.shields.io/badge/Node-%3E%3D20-339933?logo=node.js&logoColor=white" alt="Node >= 20" />
+      <br />
+      <img src="https://img.shields.io/github/actions/workflow/status/linchpin/worktree-utils/release-please.yml?label=release" alt="Release status" />
+      <img src="https://img.shields.io/badge/Conventional%20Commits-1.0.0-FE5196?logo=conventionalcommits&logoColor=white" alt="Conventional Commits" />
+      <br />
+      <img src="https://img.shields.io/github/last-commit/linchpin/worktree-utils" alt="Last commit" />
+      <img src="https://img.shields.io/badge/PRs-welcome-brightgreen" alt="PRs welcome" />
+      <img src="https://img.shields.io/badge/WordPress-%2321759B?logo=wordpress&logoColor=white" alt="WordPress" />
     </td>
   </tr>
   <tr>
