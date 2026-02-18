@@ -5,7 +5,7 @@
       Git worktree tooling for WordPress plugin review workflows with Codex, Claude Code, Cursor, Conductor and other agents.
     </td>
     <td align="center" width="30%">
-      [![npm version](https://badge.fury.io/js/@linchpinagency%2Fworktree-utils.svg)](https://badge.fury.io/js/@linchpinagency%2Fworktree-utils)
+      <img src="https://badge.fury.io/js/@linchpinagency%2Fworktree-utils.svg" alt="npm install" />
       <img src="https://img.shields.io/badge/Status-Active%20Development-2ea44f" alt="Status: Active Development" />
       <img src="https://img.shields.io/badge/Maintained%3F-yes-green.svg" alt="Maintained: yes" />
       <img src="https://img.shields.io/badge/Node-%3E%3D18-339933" alt="Node >= 20" />
