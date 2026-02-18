@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.0.10](https://github.com/linchpin/worktree-utils/compare/v1.0.9...v1.0.10) (2026-02-18)
+
+
+### Bug Fixes 🐛
+
+* **NO-TASK:** Broken link in readme ([bb776f1](https://github.com/linchpin/worktree-utils/commit/bb776f173acbcda1f82c7f3e79293b4471273d06))
+
+
+### Miscellaneous Chores 🧹
+
+* **NO-TASK:** Added License ([2722c18](https://github.com/linchpin/worktree-utils/commit/2722c188dc1252d2966097a3c132588ef58d13f5))
+
 ## [1.0.9](https://github.com/linchpin/worktree-utils/compare/v1.0.8...v1.0.9) (2026-02-18)
 
 
