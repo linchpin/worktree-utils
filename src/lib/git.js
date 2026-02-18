@@ -1,4 +1,5 @@
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 const { runCommand } = require('./shell');
 
@@ -74,9 +75,17 @@ function listWorktrees(cwd) {
   const resolvedCwd = safeRealpath(cwd);
   const attempts = [resolvedCwd];
   const inferredBasePath = inferBaseRepoPath(resolvedCwd);
+  const inferredBaseByWorktreeId = inferBaseRepoPathFromWorktreeId(resolvedCwd);
 
   if (inferredBasePath && inferredBasePath !== resolvedCwd) {
     attempts.push(inferredBasePath);
+  }
+  if (
+    inferredBaseByWorktreeId &&
+    inferredBaseByWorktreeId !== resolvedCwd &&
+    !attempts.includes(inferredBaseByWorktreeId)
+  ) {
+    attempts.push(inferredBaseByWorktreeId);
   }
 
   let parsed = null;
@@ -207,6 +216,134 @@ function inferBaseRepoPath(startPath) {
   return null;
 }
 
+function inferBaseRepoPathFromWorktreeId(startPath) {
+  const anchor = findGitAnchor(startPath);
+  if (!anchor) {
+    return null;
+  }
+
+  const gitdirPointer = readGitdirPointer(anchor);
+  const worktreeId = extractWorktreeId(gitdirPointer);
+
+  if (!worktreeId) {
+    return null;
+  }
+
+  const repoName = path.basename(path.dirname(anchor));
+  const parentRoot = path.dirname(path.dirname(anchor));
+
+  const directCandidates = dedupePaths([
+    path.join(parentRoot, repoName),
+    path.join(os.homedir(), 'Documents', 'GitHub', repoName),
+    path.join(os.homedir(), 'Documents', repoName),
+    path.join(os.homedir(), repoName)
+  ]);
+
+  for (const candidate of directCandidates) {
+    if (hasWorktreeMetadata(candidate, worktreeId)) {
+      return safeRealpath(candidate);
+    }
+  }
+
+  const scanRoots = dedupePaths([
+    parentRoot,
+    path.join(os.homedir(), 'Documents', 'GitHub'),
+    path.join(os.homedir(), 'Documents')
+  ]);
+
+  for (const root of scanRoots) {
+    const fromRoot = findRepoWithWorktreeId(root, worktreeId);
+    if (fromRoot) {
+      return fromRoot;
+    }
+  }
+
+  return null;
+}
+
+function readGitdirPointer(worktreePath) {
+  const gitPath = path.join(worktreePath, '.git');
+
+  let stat;
+  try {
+    stat = fs.lstatSync(gitPath);
+  } catch (_error) {
+    return null;
+  }
+
+  if (!stat.isFile()) {
+    return null;
+  }
+
+  try {
+    const content = fs.readFileSync(gitPath, 'utf8');
+    const match = content.match(/^gitdir:\s*(.+)\s*$/m);
+    return match ? match[1].trim() : null;
+  } catch (_error) {
+    return null;
+  }
+}
+
+function extractWorktreeId(gitdirPointer) {
+  if (!gitdirPointer || typeof gitdirPointer !== 'string') {
+    return null;
+  }
+
+  const normalized = gitdirPointer.replace(/\\/g, '/');
+  const match = normalized.match(/\/\.git\/worktrees\/([^/]+)$/);
+  return match ? match[1] : null;
+}
+
+function hasWorktreeMetadata(repoPath, worktreeId) {
+  if (!repoPath || !worktreeId) {
+    return false;
+  }
+
+  return fs.existsSync(path.join(repoPath, '.git', 'worktrees', worktreeId));
+}
+
+function findRepoWithWorktreeId(rootPath, worktreeId) {
+  let entries;
+  try {
+    entries = fs.readdirSync(rootPath, { withFileTypes: true });
+  } catch (_error) {
+    return null;
+  }
+
+  for (const entry of entries) {
+    if (!entry.isDirectory()) {
+      continue;
+    }
+
+    const candidate = path.join(rootPath, entry.name);
+    if (hasWorktreeMetadata(candidate, worktreeId)) {
+      return safeRealpath(candidate);
+    }
+  }
+
+  return null;
+}
+
+function dedupePaths(paths) {
+  const seen = new Set();
+  const results = [];
+
+  for (const candidate of paths) {
+    if (!candidate) {
+      continue;
+    }
+
+    const normalized = path.resolve(candidate);
+    if (seen.has(normalized)) {
+      continue;
+    }
+    seen.add(normalized);
+    results.push(normalized);
+  }
+
+  return results;
+}
+
 function stripWorktreeSuffix(repoPath) {
   let current = path.resolve(repoPath);
 
@@ -229,12 +366,18 @@ function stripWorktreeSuffix(repoPath) {
 }
 
 module.exports = {
+  dedupePaths,
+  extractWorktreeId,
+  findRepoWithWorktreeId,
   findGitAnchor,
   getBaseWorktreePath,
   getCurrentTopLevel,
+  hasWorktreeMetadata,
   inferBaseRepoPath,
+  inferBaseRepoPathFromWorktreeId,
   listWorktrees,
   parseWorktreePorcelain,
+  readGitdirPointer,
   resolveWorktreeRef,
   safeRealpath
 };
