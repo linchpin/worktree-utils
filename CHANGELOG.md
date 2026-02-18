@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.8](https://github.com/linchpin/worktree-utils/compare/v1.0.7...v1.0.8) (2026-02-17)
+
+
+### Bug Fixes 🐛
+
+* **NO-TASK:** package.json missing url ([9295e36](https://github.com/linchpin/worktree-utils/commit/9295e36713239003a6d40c87e2d7e9d41a89f6a0))
+
 ## [1.0.7](https://github.com/linchpin/worktree-utils/compare/v1.0.6...v1.0.7) (2026-02-17)
 
 
