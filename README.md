@@ -10,7 +10,6 @@
       <img src="https://img.shields.io/badge/Node-%3E%3D20-339933?logo=node.js&logoColor=white" alt="Node >= 20" />
       <br />
       <img src="https://img.shields.io/github/actions/workflow/status/linchpin/worktree-utils/release-please.yml?label=release" alt="Release status" />
-      <img src="https://img.shields.io/badge/Conventional%20Commits-1.0.0-FE5196?logo=conventionalcommits&logoColor=white" alt="Conventional Commits" />
       <br />
       <img src="https://img.shields.io/github/last-commit/linchpin/worktree-utils" alt="Last commit" />
       <img src="https://img.shields.io/badge/PRs-welcome-brightgreen" alt="PRs welcome" />
@@ -47,6 +46,35 @@ Your plugin repo is **not** checked out directly into Studio, LocalWP, or wp-env
 - When you run `linchpin wt switch <branch>` (or pick from the list), we repoint that symlink to the chosen worktree. This allows for our local environment to use an already checked out worktree with out any errors. 
 
 So you keep a single WordPress install and switch which worktree it uses by changing the symlink target.
+
+## Should you use this?
+
+Use this CLI if you already like `git worktree` but need WordPress-specific environment switching.
+
+This project does **not** replace git worktrees. It adds a WordPress workflow layer on top of them:
+
+- Store plugin/theme target paths per local environment (`Studio`, `LocalWP`, `wp-env`, custom).
+- Repoint one plugin/theme symlink to a different worktree with one command.
+- Add safety checks around symlink replacement and worktree deletion.
+- Keep one local WordPress install while reviewing many branches/worktrees.
+
+You probably **do not** need this if:
+
+- You only need `git worktree add/list/remove`.
+- You do not use a shared local WordPress environment.
+- You are fine managing symlink paths and switching manually.
+
+## `linchpin wt` vs plain `git worktree`
+
+| Need | Plain `git worktree` | `linchpin wt` |
+|---|---|---|
+| Create/list/remove worktrees | Yes (`git worktree ...`) | Yes (wrapper commands: `new`, `ls`, `del`, `get`) |
+| Switch which branch your WordPress site loads | Manual symlink edits | Built-in: `linchpin wt switch [branch] --env <name>` |
+| Save WordPress environment paths for team use | No | Yes (`linchpin wt config init` + `.linchpin.json`) |
+| Guardrails for WP plugin/theme symlink targets | No | Yes (blocks non-symlink target replacement unless `--force`) |
+| Interactive worktree picker for switching | No | Yes (TTY picker + optional `fzf` for `cd`) |
+
+If your pain is "I can create worktrees, but switching my WordPress site between them is manual and error-prone," this tool is the fit.
 
 ## Install
 

@@ -52,13 +52,53 @@ function parseWorktreePorcelain(input) {
 }
 
 function getCurrentTopLevel(cwd) {
-  const result = runCommand('git', ['rev-parse', '--show-toplevel'], { cwd });
-  return result.stdout;
+  const resolvedCwd = safeRealpath(cwd);
+  const result = runCommand('git', ['rev-parse', '--show-toplevel'], {
+    cwd: resolvedCwd,
+    allowFailure: true
+  });
+
+  if (result.ok) {
+    return result.stdout;
+  }
+
+  const anchor = findGitAnchor(resolvedCwd);
+  if (anchor) {
+    return safeRealpath(anchor);
+  }
+
+  throw new Error(result.stderr || `fatal: not a git repository: ${resolvedCwd}`);
 }
 
 function listWorktrees(cwd) {
-  const result = runCommand('git', ['worktree', 'list', '--porcelain'], { cwd });
-  const parsed = parseWorktreePorcelain(result.stdout);
+  const resolvedCwd = safeRealpath(cwd);
+  const attempts = [resolvedCwd];
+  const inferredBasePath = inferBaseRepoPath(resolvedCwd);
+
+  if (inferredBasePath && inferredBasePath !== resolvedCwd) {
+    attempts.push(inferredBasePath);
+  }
+
+  let parsed = null;
+  let lastError = '';
+
+  for (const attemptCwd of attempts) {
+    const result = runCommand('git', ['worktree', 'list', '--porcelain'], {
+      cwd: attemptCwd,
+      allowFailure: true
+    });
+
+    if (result.ok) {
+      parsed = parseWorktreePorcelain(result.stdout);
+      break;
+    }
+
+    lastError = result.stderr || lastError;
+  }
+
+  if (!parsed) {
+    throw new Error(lastError || 'Unable to list git worktrees.');
+  }
 
   return parsed.map((entry) => ({
     ...entry,
@@ -120,9 +160,79 @@ function safeRealpath(inputPath) {
   }
 }
 
+function findGitAnchor(startPath) {
+  let current = safeRealpath(startPath);
+
+  try {
+    if (!fs.statSync(current).isDirectory()) {
+      current = path.dirname(current);
+    }
+  } catch (_error) {
+    current = path.dirname(current);
+  }
+
+  while (true) {
+    if (fs.existsSync(path.join(current, '.git'))) {
+      return current;
+    }
+
+    const parent = path.dirname(current);
+    if (parent === current) {
+      return null;
+    }
+    current = parent;
+  }
+}
+
+function inferBaseRepoPath(startPath) {
+  const anchor = findGitAnchor(startPath);
+  if (!anchor) {
+    return null;
+  }
+
+  const candidates = [anchor, safeRealpath(anchor)];
+  for (const candidate of candidates) {
+    const baseCandidate = stripWorktreeSuffix(candidate);
+    if (!baseCandidate || baseCandidate === candidate) {
+      continue;
+    }
+
+    if (!fs.existsSync(path.join(baseCandidate, '.git'))) {
+      continue;
+    }
+
+    return safeRealpath(baseCandidate);
+  }
+
+  return null;
+}
+
+function stripWorktreeSuffix(repoPath) {
+  let current = path.resolve(repoPath);
+
+  while (true) {
+    const basename = path.basename(current);
+    const atIndex = basename.lastIndexOf('@');
+    if (atIndex > 0) {
+      const repoName = basename.slice(0, atIndex);
+      return path.join(path.dirname(current), repoName);
+    }
+
+    const parent = path.dirname(current);
+    if (parent === current) {
+      break;
+    }
+    current = parent;
+  }
+
+  return null;
+}
+
 module.exports = {
+  findGitAnchor,
   getBaseWorktreePath,
   getCurrentTopLevel,
+  inferBaseRepoPath,
   listWorktrees,
   parseWorktreePorcelain,
   resolveWorktreeRef,

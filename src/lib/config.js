@@ -127,13 +127,20 @@ function writeConfig(basePath, config, options = {}) {
     throw new Error(`${CONFIG_FILE_NAME} already exists. Use --force to overwrite it.`);
   }
 
+  const normalizedEnvironments = Object.fromEntries(
+    Object.entries(config.wordpress.environments || {}).map(([name, targetPath]) => [
+      name,
+      collapseHome(String(targetPath))
+    ])
+  );
+
   const payload = {
     ...(config.agent && { agent: config.agent }),
-    ...(config.agentBasePath && { agentBasePath: config.agentBasePath }),
+    ...(config.agentBasePath && { agentBasePath: collapseHome(config.agentBasePath) }),
     wordpress: {
       pluginSlug: config.wordpress.pluginSlug,
       defaultEnvironment: config.wordpress.defaultEnvironment,
-      environments: config.wordpress.environments
+      environments: normalizedEnvironments
     }
   };
 
@@ -160,10 +167,38 @@ function writeDefaultConfig(basePath, options = {}) {
   return writeConfig(basePath, defaultConfig, options);
 }
 
+function collapseHome(inputPath) {
+  if (!inputPath || typeof inputPath !== 'string') {
+    return inputPath;
+  }
+
+  if (inputPath === '~' || inputPath.startsWith('~/')) {
+    return inputPath;
+  }
+
+  if (!path.isAbsolute(inputPath)) {
+    return inputPath;
+  }
+
+  const normalizedInput = path.normalize(inputPath);
+  const normalizedHome = path.normalize(os.homedir());
+
+  if (normalizedInput === normalizedHome) {
+    return '~';
+  }
+
+  if (normalizedInput.startsWith(`${normalizedHome}${path.sep}`)) {
+    return `~${normalizedInput.slice(normalizedHome.length)}`;
+  }
+
+  return inputPath;
+}
+
 module.exports = {
   AGENT_BASE_PATHS,
   AGENT_VALUES,
   CONFIG_FILE_NAME,
+  collapseHome,
   configPathFor,
   expandHome,
   getAgentBasePath,
