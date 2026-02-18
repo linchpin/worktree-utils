@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.11](https://github.com/linchpin/worktree-utils/compare/v1.0.10...v1.0.11) (2026-02-18)
+
+
+### Changes to Existing Features 💅
+
+* **NO-TASK:** Add ability to switch from worktree ([4e2fc90](https://github.com/linchpin/worktree-utils/commit/4e2fc90d6c468190e2b2a72595346e8a2091f80a))
+* **NO-TASK:** Update readme "why use this" ([6981fe0](https://github.com/linchpin/worktree-utils/commit/6981fe02caa140d777025838a84a57baadd3cd66))
+
 ## [1.0.10](https://github.com/linchpin/worktree-utils/compare/v1.0.9...v1.0.10) (2026-02-18)
 
 
