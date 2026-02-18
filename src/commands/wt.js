@@ -1,4 +1,5 @@
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 const {
   getBaseWorktreePath,
@@ -8,9 +9,79 @@ const {
   safeRealpath
 } = require('../lib/git');
 const { runCommand } = require('../lib/shell');
-const { expandHome, readConfig, writeDefaultConfig } = require('../lib/config');
+const {
+  configPathFor,
+  expandHome,
+  getAgentBasePath,
+  readConfig,
+  writeConfig,
+  writeDefaultConfig
+} = require('../lib/config');
 const { ensurePluginLink } = require('../lib/symlink');
 const { findHookFile, runHook } = require('../lib/hooks');
+
+/** Environment types: base path getters for config init. */
+const ENV_TYPE_BASES = Object.freeze({
+  studio: () => path.join(expandHome('~/Studio')),
+  localwp: () => path.join(expandHome('~/Local Sites')),
+  'wp-env': (basePath) => basePath || ''
+});
+
+function getEnvTypeBasePath(envType, basePath) {
+  if (envType === 'wp-env') {
+    return ENV_TYPE_BASES['wp-env'](basePath);
+  }
+  const fn = ENV_TYPE_BASES[envType];
+  return fn ? fn() : '';
+}
+
+/** List direct subdirectories of basePath that look like site folders (non-hidden). */
+function listSitesInBase(basePath) {
+  const expanded = path.resolve(expandHome(basePath));
+  if (!fs.existsSync(expanded)) {
+    return [];
+  }
+  try {
+    return fs
+      .readdirSync(expanded, { withFileTypes: true })
+      .filter((d) => d.isDirectory() && !d.name.startsWith('.'))
+      .map((d) => d.name)
+      .sort();
+  } catch {
+    return [];
+  }
+}
+
+/** Pick one site: use fzf if available and multiple sites, else return null (caller uses select). */
+function pickSiteWithFzf(sites) {
+  if (sites.length === 0 || !hasCommand('fzf')) {
+    return null;
+  }
+  const result = runCommand('fzf', ['--no-multi', '--exit-0', '--height', '10'], {
+    input: sites.join('\n'),
+    allowFailure: true
+  });
+  if (!result.ok || !result.stdout) {
+    return null;
+  }
+  return result.stdout.trim();
+}
+
+function buildTargetPath(envType, site, contentDir, slug, wpEnvBase) {
+  const contentSubdir = contentDir === 'theme' ? 'themes' : 'plugins';
+  if (envType === 'studio') {
+    const base = getEnvTypeBasePath('studio');
+    return path.join(base, site, 'wp-content', contentSubdir, slug);
+  }
+  if (envType === 'localwp') {
+    const base = getEnvTypeBasePath('localwp');
+    return path.join(base, site, 'app', 'public', 'wp-content', contentSubdir, slug);
+  }
+  if (envType === 'wp-env' && wpEnvBase) {
+    return path.join(wpEnvBase, 'wp-content', contentSubdir, slug);
+  }
+  return '';
+}
 
 function runWt(argv, options = {}) {
   const cwd = options.cwd || process.cwd();
@@ -546,17 +617,242 @@ function commandInvoke(cwd, argv) {
   return 0;
 }
 
+async function runConfigInitPrompts(basePath, options = {}) {
+  const { input, select, confirm } = await import('@inquirer/prompts');
+  const CONFIG_FILE_NAME = '.linchpin.json';
+
+  if (fs.existsSync(configPathFor(basePath)) && !options.force) {
+    const action = await select({
+      message: `${CONFIG_FILE_NAME} already exists. What do you want to do?`,
+      choices: [
+        { value: 'overwrite', name: 'Overwrite (replace with new config)' },
+        { value: 'edit', name: 'Edit (use existing as defaults)' },
+        { value: 'cancel', name: 'Cancel' }
+      ]
+    });
+
+    if (action === 'cancel') {
+      return 0;
+    }
+
+    if (action === 'overwrite') {
+      options.force = true;
+    }
+
+    if (action === 'edit') {
+      try {
+        options.existingConfig = readConfig(basePath);
+      } catch (err) {
+        process.stderr.write(`Cannot read existing config: ${err.message}\n`);
+        return 1;
+      }
+      options.force = true;
+    }
+  }
+
+  const existing = options.existingConfig?.wordpress;
+  const existingAgent = options.existingConfig?.agent;
+  const existingAgentBasePath = options.existingConfig?.agentBasePath;
+  const defaultSlug = existing?.pluginSlug || options.defaultPluginSlug || path.basename(basePath);
+
+  // Which agent (defines what worktree folders we swap between)
+  const agent = await select({
+    message:
+      'Which agent are you using? (This defines which worktree folders we\'ll swap between.)',
+    choices: [
+      { value: 'conductor', name: 'Conductor' },
+      { value: 'claude-code', name: 'Claude Code' },
+      { value: 'codex', name: 'Codex' },
+      {
+        value: 'custom',
+        name: 'Custom Path (works with any directory — use if not using a standard path from the agents above)'
+      }
+    ],
+    default: existingAgent || null
+  });
+
+  let agentBasePath = null;
+  if (agent === 'custom') {
+    const customBase = await input({
+      message: 'Base path where your repos live (e.g. ~/my-projects)',
+      default: existingAgentBasePath || ''
+    });
+    if (customBase && customBase.trim()) {
+      agentBasePath = path.resolve(expandHome(customBase.trim()));
+    }
+  } else {
+    agentBasePath = getAgentBasePath(agent);
+  }
+
+  // Project context: what are you working on?
+  const contentType = await select({
+    message: 'Are you working on a plugin or a theme?',
+    choices: [
+      { value: 'plugin', name: 'Plugin' },
+      { value: 'theme', name: 'Theme' }
+    ],
+    default: existing ? 'plugin' : 'plugin'
+  });
+
+  const pluginSlug = await input({
+    message: `WordPress directory name (slug) for this ${contentType}`,
+    default: defaultSlug
+  });
+
+  if (!pluginSlug || !pluginSlug.trim()) {
+    throw new Error('A plugin/theme slug is required.');
+  }
+
+  const slug = pluginSlug.trim();
+  const environments = existing ? { ...existing.environments } : {};
+
+  const addEnvironment = async () => {
+    const envType = await select({
+      message: 'Environment type (this sets the base folder we’ll use next)',
+      choices: [
+        { value: 'studio', name: 'Studio' },
+        { value: 'localwp', name: 'LocalWP' },
+        { value: 'wp-env', name: 'wp-env' },
+        { value: 'other', name: 'Other (enter path manually)' }
+      ]
+    });
+
+    if (envType === 'other') {
+      const name = await input({
+        message: 'Environment name (e.g. custom)',
+        default: 'custom'
+      });
+      const rawPath = await input({
+        message: 'Full path to plugin/theme directory',
+        default: ''
+      });
+      if (name && name.trim() && rawPath && rawPath.trim()) {
+        environments[name.trim()] = rawPath.trim();
+      }
+      return;
+    }
+
+    let targetPath = '';
+    let envName = envType;
+
+    if (envType === 'studio' || envType === 'localwp') {
+      const base = getEnvTypeBasePath(envType);
+      const sites = listSitesInBase(base);
+
+      if (sites.length === 0) {
+        process.stdout.write(
+          `No site folders found in ${base}. Enter the path manually or create a site first.\n`
+        );
+        const manual = await input({
+          message: `Path to ${contentType} directory for "${envType}"`,
+          default: envType === 'studio'
+            ? path.join(base, '<site>', 'wp-content', contentType === 'theme' ? 'themes' : 'plugins', slug)
+            : path.join(base, '<site>', 'app', 'public', 'wp-content', contentType === 'theme' ? 'themes' : 'plugins', slug)
+        });
+        if (manual && manual.trim()) {
+          targetPath = manual.trim();
+          envName = envType;
+        }
+      } else {
+        let site = pickSiteWithFzf(sites);
+        if (site == null) {
+          site = await select({
+            message: `Which site in ${base}?`,
+            choices: sites.map((s) => ({ value: s, name: s }))
+          });
+        }
+        if (site) {
+          targetPath = buildTargetPath(envType, site, contentType, slug);
+          envName = `${envType}-${site}`;
+        }
+      }
+    } else if (envType === 'wp-env') {
+      const defaultWpEnv = path.join(basePath, '.wp-env', 'volumes', 'wordpress');
+      const wpEnvRoot = await input({
+        message: 'Path to wp-env WordPress root (e.g. …/.wp-env/volumes/wordpress)',
+        default: defaultWpEnv
+      });
+      if (wpEnvRoot && wpEnvRoot.trim()) {
+        targetPath = buildTargetPath('wp-env', null, contentType, slug, wpEnvRoot.trim());
+        envName = 'wp-env';
+      }
+    }
+
+    if (targetPath) {
+      let finalName = envName;
+      if (Object.keys(environments).includes(envName)) {
+        finalName = await input({
+          message: 'Environment name (already used; choose another)',
+          default: `${envName}-2`
+        });
+      }
+      if (finalName && finalName.trim()) {
+        environments[finalName.trim()] = targetPath;
+      }
+    }
+  };
+
+  if (Object.keys(environments).length === 0) {
+    await addEnvironment();
+  }
+  while (
+    Object.keys(environments).length > 0 &&
+    (await confirm({ message: 'Add another environment?', default: false }))
+  ) {
+    await addEnvironment();
+  }
+
+  if (Object.keys(environments).length === 0) {
+    throw new Error('At least one environment is required.');
+  }
+
+  const currentDefault =
+    existing?.defaultEnvironment && environments[existing.defaultEnvironment]
+      ? existing.defaultEnvironment
+      : Object.keys(environments)[0];
+  const defaultEnvironment = await select({
+    message: 'Default environment to use with linchpin wt switch',
+    choices: Object.entries(environments).map(([name, targetPath]) => ({
+      value: name,
+      name: `${name}  →  ${path.resolve(expandHome(targetPath))}`
+    })),
+    default: currentDefault
+  });
+
+  const config = {
+    agent,
+    ...(agentBasePath && { agentBasePath }),
+    wordpress: {
+      pluginSlug: slug,
+      defaultEnvironment,
+      environments
+    }
+  };
+
+  const filePath = writeConfig(basePath, config, { force: options.force });
+
+  process.stdout.write(`Created ${filePath}\n`);
+  return 0;
+}
+
 function commandConfig(cwd, argv) {
   const sub = argv[0] || 'help';
 
   if (sub === 'init') {
     const basePath = getBaseWorktreePath(cwd);
-    const pluginSlug = readOptionValue(argv.slice(1), '--plugin-slug');
+    const pluginSlugOpt = readOptionValue(argv.slice(1), '--plugin-slug');
     const force = argv.includes('--force');
+    const noInteractive = argv.includes('--no-interactive');
+
+    const usePrompts = process.stdin.isTTY && !noInteractive;
+
+    if (usePrompts) {
+      return runConfigInitPrompts(basePath, { force, defaultPluginSlug: pluginSlugOpt });
+    }
 
     const filePath = writeDefaultConfig(basePath, {
       force,
-      pluginSlug
+      pluginSlug: pluginSlugOpt
     });
 
     process.stdout.write(`Created ${filePath}\n`);
@@ -707,7 +1003,7 @@ function printWtHelp() {
   process.stdout.write(`  linchpin wt copy <path>\n`);
   process.stdout.write(`  linchpin wt link <path>\n`);
   process.stdout.write(`  linchpin wt invoke <hook>\n`);
-  process.stdout.write(`  linchpin wt config init [--plugin-slug <slug>] [--force]\n`);
+  process.stdout.write(`  linchpin wt config init [--plugin-slug <slug>] [--force] [--no-interactive]\n`);
   process.stdout.write(`  linchpin wt config show\n`);
   process.stdout.write(`\n`);
   process.stdout.write(`Tips:\n`);
@@ -718,7 +1014,7 @@ function printWtHelp() {
 function printConfigHelp() {
   process.stdout.write('linchpin wt config\n\n');
   process.stdout.write('Usage:\n');
-  process.stdout.write('  linchpin wt config init [--plugin-slug <slug>] [--force]\n');
+  process.stdout.write('  linchpin wt config init [--plugin-slug <slug>] [--force] [--no-interactive]\n');
   process.stdout.write('  linchpin wt config show\n');
 }
 

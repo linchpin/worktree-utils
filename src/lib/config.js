@@ -27,6 +27,24 @@ function readConfig(basePath) {
   return normalizeConfig(parsed);
 }
 
+const AGENT_VALUES = Object.freeze(['conductor', 'claude-code', 'codex', 'custom']);
+
+/** Default base path per agent (repos live under this directory). Custom has no default. */
+const AGENT_BASE_PATHS = Object.freeze({
+  conductor: '~/conductor',
+  'claude-code': '~/Documents',
+  codex: '~/Documents/GitHub',
+  custom: null
+});
+
+function getAgentBasePath(agent) {
+  if (!agent || agent === 'custom') {
+    return null;
+  }
+  const raw = AGENT_BASE_PATHS[agent];
+  return raw ? path.resolve(expandHome(raw)) : null;
+}
+
 function normalizeConfig(input) {
   const root = input || {};
   const wp = root.wordpress || {};
@@ -44,7 +62,15 @@ function normalizeConfig(input) {
     );
   }
 
+  const agent = root.agent && AGENT_VALUES.includes(root.agent) ? root.agent : null;
+  const agentBasePath =
+    typeof root.agentBasePath === 'string' && root.agentBasePath.trim()
+      ? root.agentBasePath.trim()
+      : null;
+
   return {
+    agent,
+    agentBasePath,
     wordpress: {
       pluginSlug: wp.pluginSlug || root.pluginSlug || null,
       defaultEnvironment,
@@ -94,13 +120,29 @@ function expandHome(inputPath) {
   return inputPath;
 }
 
-function writeDefaultConfig(basePath, options = {}) {
+function writeConfig(basePath, config, options = {}) {
   const filePath = configPathFor(basePath);
 
   if (fs.existsSync(filePath) && !options.force) {
     throw new Error(`${CONFIG_FILE_NAME} already exists. Use --force to overwrite it.`);
   }
 
+  const payload = {
+    ...(config.agent && { agent: config.agent }),
+    ...(config.agentBasePath && { agentBasePath: config.agentBasePath }),
+    wordpress: {
+      pluginSlug: config.wordpress.pluginSlug,
+      defaultEnvironment: config.wordpress.defaultEnvironment,
+      environments: config.wordpress.environments
+    }
+  };
+
+  fs.writeFileSync(filePath, `${JSON.stringify(payload, null, 2)}\n`, 'utf8');
+
+  return filePath;
+}
+
+function writeDefaultConfig(basePath, options = {}) {
   const pluginSlug = options.pluginSlug || path.basename(basePath);
 
   const defaultConfig = {
@@ -110,21 +152,23 @@ function writeDefaultConfig(basePath, options = {}) {
       environments: {
         studio: `/path/to/wordpress/wp-content/plugins/${pluginSlug}`,
         'wp-env': `/path/to/.wp-env/.../plugins/${pluginSlug}`,
-        localwp: `/path/to/LocalWP/site/app/public/wp-content/plugins/${pluginSlug}`
+        localwp: `${os.homedir()}/Local Sites/<site>/app/public/wp-content/plugins/${pluginSlug}`
       }
     }
   };
 
-  fs.writeFileSync(filePath, `${JSON.stringify(defaultConfig, null, 2)}\n`, 'utf8');
-
-  return filePath;
+  return writeConfig(basePath, defaultConfig, options);
 }
 
 module.exports = {
+  AGENT_BASE_PATHS,
+  AGENT_VALUES,
   CONFIG_FILE_NAME,
   configPathFor,
   expandHome,
+  getAgentBasePath,
   normalizeConfig,
   readConfig,
+  writeConfig,
   writeDefaultConfig
 };

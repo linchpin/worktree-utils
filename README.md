@@ -2,9 +2,10 @@
   <tr>
     <td align="left" width="70%">
       <strong>Linchpin CLI - Worktree Utils</strong><br />
-      Git worktree tooling for WordPress plugin review workflows with Codex and other agents.
+      Git worktree tooling for WordPress plugin review workflows with Codex, Claude Code, Cursor, Conductor and other agents.
     </td>
     <td align="center" width="30%">
+      [![npm version](https://badge.fury.io/js/@linchpinagency%2Fworktree-utils.svg)](https://badge.fury.io/js/@linchpinagency%2Fworktree-utils)
       <img src="https://img.shields.io/badge/Status-Active%20Development-2ea44f" alt="Status: Active Development" />
       <img src="https://img.shields.io/badge/Maintained%3F-yes-green.svg" alt="Maintained: yes" />
       <img src="https://img.shields.io/badge/Node-%3E%3D18-339933" alt="Node >= 20" />
@@ -22,7 +23,7 @@
 
 ## What is this CLI?
 
-`linchpin wt` is a git worktree helper tuned for WordPress plugin development alongside Agent support.
+`linchpin wt` is a git worktree helper tuned for WordPress plugin development alongside Agent support to help easily swap Symlinks between your local environment and worktrees created by you or agents.
 
 It is designed for this setup:
 
@@ -34,7 +35,7 @@ It is designed for this setup:
 ## Install
 
 ```bash
-npm install -g @linchpin/worktree-utils
+npm install -g @linchpinagency/worktree-utils
 ```
 
 For local development in this repository:
@@ -56,7 +57,7 @@ npm link
 ### 2. Install CLI
 
 ```bash
-npm install -g @linchpin/worktree-utils
+npm install -g @linchpinagency/worktree-utils
 ```
 
 Confirm install:
@@ -68,23 +69,40 @@ linchpin wt help
 
 ### 3. Initialize project config
 
-From the plugin repo root (base worktree):
+From the plugin or theme repo root (base worktree), run:
 
 ```bash
-linchpin wt config init --plugin-slug <plugin-slug>
+linchpin wt config init
 ```
 
-This creates `.linchpin.json`. Edit it so `wordpress.environments` matches your local machine paths.
+When run in an interactive terminal, you're guided through:
 
-### 4. Configure WordPress plugin targets
+1. **Plugin or theme** – Whether this repo is a WordPress plugin or theme (paths use `plugins/<slug>` or `themes/<slug>`).
+2. **Slug** – The WordPress directory name (defaults to the repo directory name). Keep the default or type a different slug.
+3. **Environment(s)** – For each environment: **Environment type** (Studio, LocalWP, wp-env, or Other), which sets the base folder; then for Studio/LocalWP you **pick a site** from that base (list or `fzf` if installed), or for wp-env you enter the WordPress root path; for Other you enter name and full path.
+4. Add more environments if needed, then choose the **default environment** for `linchpin wt switch`.
 
-Set each environment path to the plugin location inside that WordPress install:
+This creates `.linchpin.json`. You can edit it later if paths or environments change.
 
-- Studio: `/path/to/studio/wp-content/plugins/<plugin-slug>`
-- `wp-env`: `/path/to/project/.wp-env/.../plugins/<plugin-slug>`
-- LocalWP: `/path/to/Local Sites/<site>/app/public/wp-content/plugins/<plugin-slug>`
+If `.linchpin.json` already exists, the flow offers **Overwrite**, **Edit** (keep existing and add more environments), or **Cancel**.
 
-Use absolute paths. `~` is supported.
+For scripts or CI (no TTY), use non-interactive mode so a default template is written without prompts:
+
+```bash
+linchpin wt config init --plugin-slug <plugin-slug> [--force] [--no-interactive]
+```
+
+Use `--force` to overwrite an existing `.linchpin.json` without prompting. Use `--no-interactive` to skip prompts even when running in a terminal.
+
+### 4. Paths built by config init
+
+For Studio and LocalWP, paths are built from the environment type and the site you pick:
+
+- **Studio**: `~/Studio/<site>/wp-content/plugins|themes/<slug>`
+- **LocalWP**: `~/Local Sites/<site>/app/public/wp-content/plugins|themes/<slug>`
+- **wp-env**: You provide the WordPress root; the CLI appends `wp-content/plugins|themes/<slug>`.
+
+Use absolute paths in `.linchpin.json` if you edit by hand. `~` is supported.
 
 ### 5. Create and switch worktrees
 
@@ -140,7 +158,7 @@ cd "$(linchpin wt home)"
 ### 9. Troubleshooting
 
 - `Missing .linchpin.json`:
-  Run `linchpin wt config init` in the base worktree.
+  Run `linchpin wt config init` in the base worktree (interactive prompts) or `linchpin wt config init --plugin-slug <slug> --no-interactive` for a default file.
 - `Environment '<name>' is not configured`:
   Add the environment key in `.linchpin.json`.
 - `Target exists and is not a symlink`:
@@ -170,7 +188,7 @@ linchpin wt copy <path>
 linchpin wt link <path>
 linchpin wt invoke <hook>
 
-linchpin wt config init [--plugin-slug <slug>] [--force]
+linchpin wt config init [--plugin-slug <slug>] [--force] [--no-interactive]
 linchpin wt config show
 ```
 
@@ -182,10 +200,12 @@ Shell usage notes:
 
 ## Configuration
 
-Create `.linchpin.json` in the base repository root:
+Create `.linchpin.json` in the base repository root. The easiest way is to run `linchpin wt config init` in a terminal and follow the prompts. You can also create or edit the file manually:
 
 ```json
 {
+  "agent": "conductor",
+  "agentBasePath": "/Users/you/conductor",
   "wordpress": {
     "pluginSlug": "my-plugin",
     "defaultEnvironment": "studio",
@@ -200,6 +220,7 @@ Create `.linchpin.json` in the base repository root:
 
 Behavior notes:
 
+- **Agent / base path**: `agent` (Conductor, Claude Code, Codex, or Custom Path) and optional `agentBasePath` record where your worktree repos live. Default base paths: Conductor `~/conductor`, Claude Code `~/Documents`, Codex `~/Documents/GitHub`. For Custom Path you’re prompted for a base path during `config init`.
 - If `defaultEnvironment` is omitted, the first environment key is used.
 - `~` is supported in configured paths.
 - `linchpin wt switch` without a worktree argument uses the current worktree.
@@ -262,9 +283,9 @@ feat(LINCHPIN-4850): add release automation
 
 Releases are managed by `release-please` in GitHub Actions:
 
-- Pushes to `main` or `master` run `.github/workflows/release-please.yml`.
+- Pushes to `main` run `.github/workflows/release-please.yml`.
 - `release-please` opens/updates a release PR from conventional commits.
 - When the release PR is merged, a GitHub release/tag is created.
-- If a release is created, the workflow publishes `@linchpin/worktree-utils` to npm.
+- If a release is created, the workflow publishes `@linchpinagency/worktree-utils` to npm.
 
 ![Linchpin an award winning digital agency building immersive, high performing web experiences](https://assets.linchpin.com/github/linchpin-github-repo-banner.jpg)

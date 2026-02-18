@@ -33,5 +33,8 @@
     "worktree",
     "wordpress",
     "linchpin"
-  ]
+  ],
+  "dependencies": {
+    "@inquirer/prompts": "^8.2.1"
+  }
 }
