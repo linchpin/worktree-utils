@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.0.9](https://github.com/linchpin/worktree-utils/compare/v1.0.8...v1.0.9) (2026-02-18)
+
+
+### Changes to Existing Features 💅
+
+* **NO-TASK:** Add more defaults for the team ([c74264d](https://github.com/linchpin/worktree-utils/commit/c74264dc5e8398ae84b55419c284e210cc33d5b0))
+* **NO-TASK:** Better prompting to onboard ([c74264d](https://github.com/linchpin/worktree-utils/commit/c74264dc5e8398ae84b55419c284e210cc33d5b0))
+* **NO-TASK:** Better worktree/branch selection ([8d1b26d](https://github.com/linchpin/worktree-utils/commit/8d1b26d3434df390919e731e4c7a8135468aff85))
+* **NO-TASK:** Clean up readme ([c74264d](https://github.com/linchpin/worktree-utils/commit/c74264dc5e8398ae84b55419c284e210cc33d5b0))
+* **NO-TASK:** Updated readme ([8d1b26d](https://github.com/linchpin/worktree-utils/commit/8d1b26d3434df390919e731e4c7a8135468aff85))
+
 ## [1.0.8](https://github.com/linchpin/worktree-utils/compare/v1.0.7...v1.0.8) (2026-02-17)
 
 
