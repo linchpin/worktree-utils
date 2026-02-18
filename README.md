@@ -32,6 +32,16 @@ It is designed for this setup:
 - A shared local WordPress environment (Studio, `wp-env`, or LocalWP).
 - A plugin directory in that environment that should point to a specific worktree via symlink.
 
+### Why symlinks? Why isn’t the repo checked out directly in my environment?
+
+Your plugin repo is **not** checked out directly into Studio, LocalWP, or wp-env on purpose. The workflow relies on **symlinks** so you can **swap** which worktree (branch) the environment sees:
+
+- The repo lives in its own directory (e.g. `~/Documents/GitHub/my-plugin`) with multiple [git worktrees](https://git-scm.com/docs/git-worktree) (e.g. `main`, `conductor/a`, `feature/b`).
+- The WordPress environment has **one** plugin (or theme) slot (e.g. `~/Studio/mysite/wp-content/plugins/my-plugin`). That slot is a **symlink** pointing at one of the worktree paths.
+- When you run `linchpin wt switch <branch>` (or pick from the list), we repoint that symlink to the chosen worktree. This allows for our local environment to use an already checked out worktree with out any errors. 
+
+So you keep a single WordPress install and switch which worktree it uses by changing the symlink target.
+
 ## Install
 
 ```bash
@@ -80,9 +90,11 @@ When run in an interactive terminal, you're guided through:
 1. **Plugin or theme** – Whether this repo is a WordPress plugin or theme (paths use `plugins/<slug>` or `themes/<slug>`).
 2. **Slug** – The WordPress directory name (defaults to the repo directory name). Keep the default or type a different slug.
 3. **Environment(s)** – For each environment: **Environment type** (Studio, LocalWP, wp-env, or Other), which sets the base folder; then for Studio/LocalWP you **pick a site** from that base (list or `fzf` if installed), or for wp-env you enter the WordPress root path; for Other you enter name and full path.
-4. Add more environments if needed, then choose the **default environment** for `linchpin wt switch`.
+4. Choose the **default environment** for `linchpin wt switch`.
 
 This creates `.linchpin.json`. You can edit it later if paths or environments change.
+
+5. **Create initial symlink(s)** – If the target already exists and is not a symlink, that environment is skipped; run `linchpin wt switch --env <name> --force` to replace it.
 
 If `.linchpin.json` already exists, the flow offers **Overwrite**, **Edit** (keep existing and add more environments), or **Cancel**.
 
@@ -174,6 +186,7 @@ cd "$(linchpin wt home)"
 linchpin wt ls [--json]
 linchpin wt current [--link] [--env <name>]
 linchpin wt switch [worktree|branch] [--env <name>] [--force] [--dry-run]
+  # No argument in a TTY: interactive picker from available worktrees. Non-interactive: use current worktree.
 
 linchpin wt new [name]
 linchpin wt get <branch>
@@ -223,7 +236,7 @@ Behavior notes:
 - **Agent / base path**: `agent` (Conductor, Claude Code, Codex, or Custom Path) and optional `agentBasePath` record where your worktree repos live. Default base paths: Conductor `~/conductor`, Claude Code `~/Documents`, Codex `~/Documents/GitHub`. For Custom Path you’re prompted for a base path during `config init`.
 - If `defaultEnvironment` is omitted, the first environment key is used.
 - `~` is supported in configured paths.
-- `linchpin wt switch` without a worktree argument uses the current worktree.
+- `linchpin wt switch` without a worktree argument: in an interactive terminal you get a **picker** of available worktrees; in non-interactive use it uses the current worktree.
 
 ## Hooks
 

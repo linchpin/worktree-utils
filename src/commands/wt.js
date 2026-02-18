@@ -67,6 +67,23 @@ function pickSiteWithFzf(sites) {
   return result.stdout.trim();
 }
 
+/**
+ * Pick one worktree via @inquirer/prompts select.
+ * @param {Array<{ worktree: string, branch?: string | null, head: string, resolvedWorktree: string }>} worktrees
+ * @returns {Promise<{ worktree: string, branch?: string | null, head: string, resolvedWorktree: string }>}
+ */
+async function pickWorktreeWithSelect(worktrees) {
+  const { select } = await import('@inquirer/prompts');
+  const choice = await select({
+    message: 'Which worktree should the environment use?',
+    choices: worktrees.map((item) => {
+      const label = item.branch || `detached (${item.head.slice(0, 7)})`;
+      return { value: item.worktree, name: `${label}  →  ${item.worktree}` };
+    })
+  });
+  return worktrees.find((item) => item.worktree === choice);
+}
+
 function buildTargetPath(envType, site, contentDir, slug, wpEnvBase) {
   const contentSubdir = contentDir === 'theme' ? 'themes' : 'plugins';
   if (envType === 'studio') {
@@ -195,7 +212,7 @@ function commandCurrent(cwd, argv) {
   return 0;
 }
 
-function commandSwitch(cwd, argv) {
+async function commandSwitch(cwd, argv) {
   const basePath = getBaseWorktreePath(cwd);
   const worktrees = listWorktrees(cwd);
 
@@ -210,11 +227,18 @@ function commandSwitch(cwd, argv) {
     );
   }
 
-  const selected = resolveWorktreeRef({
-    ref: options.ref,
-    worktrees,
-    cwd
-  });
+  let selected;
+  if (options.ref != null) {
+    selected = resolveWorktreeRef({ ref: options.ref, worktrees, cwd });
+  } else if (process.stdin.isTTY && worktrees.length >= 1) {
+    selected = await pickWorktreeWithSelect(worktrees);
+  } else {
+    selected = resolveWorktreeRef({
+      ref: getCurrentTopLevel(cwd),
+      worktrees,
+      cwd
+    });
+  }
 
   const sourcePath = selected.worktree;
   const targetPath = path.resolve(expandHome(targetPathRaw));
@@ -618,7 +642,7 @@ function commandInvoke(cwd, argv) {
 }
 
 async function runConfigInitPrompts(basePath, options = {}) {
-  const { input, select, confirm } = await import('@inquirer/prompts');
+  const { input, select } = await import('@inquirer/prompts');
   const CONFIG_FILE_NAME = '.linchpin.json';
 
   if (fs.existsSync(configPathFor(basePath)) && !options.force) {
@@ -795,12 +819,6 @@ async function runConfigInitPrompts(basePath, options = {}) {
   if (Object.keys(environments).length === 0) {
     await addEnvironment();
   }
-  while (
-    Object.keys(environments).length > 0 &&
-    (await confirm({ message: 'Add another environment?', default: false }))
-  ) {
-    await addEnvironment();
-  }
 
   if (Object.keys(environments).length === 0) {
     throw new Error('At least one environment is required.');
@@ -832,6 +850,32 @@ async function runConfigInitPrompts(basePath, options = {}) {
   const filePath = writeConfig(basePath, config, { force: options.force });
 
   process.stdout.write(`Created ${filePath}\n`);
+
+  const createInitialLinks = await confirm({
+    message:
+      'Create initial symlink(s) from this repo to your local environment(s)? (Points the plugin/theme slot at this worktree so you can use it before running linchpin wt switch.)',
+    default: true
+  });
+
+  if (createInitialLinks) {
+    for (const [envName, targetPathRaw] of Object.entries(environments)) {
+      const targetPath = path.resolve(expandHome(targetPathRaw));
+      try {
+        const result = ensurePluginLink({
+          sourcePath: basePath,
+          targetPath,
+          force: false,
+          dryRun: false
+        });
+        process.stdout.write(`  ${envName}: ${result.action}\n`);
+      } catch (err) {
+        process.stderr.write(
+          `  ${envName}: ${err.message} (run 'linchpin wt switch --env ${envName} --force' to replace.)\n`
+        );
+      }
+    }
+  }
+
   return 0;
 }
 
