@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.12](https://github.com/linchpin/worktree-utils/compare/v1.0.11...v1.0.12) (2026-02-19)
+
+
+### Features ✨
+
+* Add WP Content Project option for entire wp-content directory repos ([3b43d00](https://github.com/linchpin/worktree-utils/commit/3b43d00b5ee5d92417cfc5b783096b25c69fcfeb))
+
 ## [1.0.11](https://github.com/linchpin/worktree-utils/compare/v1.0.10...v1.0.11) (2026-02-18)
 
 
