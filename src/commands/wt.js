@@ -649,7 +649,7 @@ function commandInvoke(cwd, argv) {
 }
 
 async function runConfigInitPrompts(basePath, options = {}) {
-  const { input, select } = await import('@inquirer/prompts');
+  const { confirm, input, select } = await import('@inquirer/prompts');
   const CONFIG_FILE_NAME = '.linchpin.json';
 
   if (fs.existsSync(configPathFor(basePath)) && !options.force) {
