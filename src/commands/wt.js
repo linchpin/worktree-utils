@@ -85,17 +85,24 @@ async function pickWorktreeWithSelect(worktrees) {
 }
 
 function buildTargetPath(envType, site, contentDir, slug, wpEnvBase) {
+  const isWpContent = contentDir === 'wp-content';
   const contentSubdir = contentDir === 'theme' ? 'themes' : 'plugins';
   if (envType === 'studio') {
     const base = getEnvTypeBasePath('studio');
-    return path.join(base, site, 'wp-content', contentSubdir, slug);
+    return isWpContent
+      ? path.join(base, site, 'wp-content')
+      : path.join(base, site, 'wp-content', contentSubdir, slug);
   }
   if (envType === 'localwp') {
     const base = getEnvTypeBasePath('localwp');
-    return path.join(base, site, 'app', 'public', 'wp-content', contentSubdir, slug);
+    return isWpContent
+      ? path.join(base, site, 'app', 'public', 'wp-content')
+      : path.join(base, site, 'app', 'public', 'wp-content', contentSubdir, slug);
   }
   if (envType === 'wp-env' && wpEnvBase) {
-    return path.join(wpEnvBase, 'wp-content', contentSubdir, slug);
+    return isWpContent
+      ? path.join(wpEnvBase, 'wp-content')
+      : path.join(wpEnvBase, 'wp-content', contentSubdir, slug);
   }
   return '';
 }
@@ -710,24 +717,28 @@ async function runConfigInitPrompts(basePath, options = {}) {
 
   // Project context: what are you working on?
   const contentType = await select({
-    message: 'Are you working on a plugin or a theme?',
+    message: 'Are you working on a plugin, a theme, or a full wp-content project?',
     choices: [
       { value: 'plugin', name: 'Plugin' },
-      { value: 'theme', name: 'Theme' }
+      { value: 'theme', name: 'Theme' },
+      { value: 'wp-content', name: 'WP Content Project (entire wp-content folder is the repo)' }
     ],
-    default: existing ? 'plugin' : 'plugin'
+    default: existing?.contentType || 'plugin'
   });
 
-  const pluginSlug = await input({
-    message: `WordPress directory name (slug) for this ${contentType}`,
-    default: defaultSlug
-  });
+  let slug = '';
+  if (contentType !== 'wp-content') {
+    const pluginSlug = await input({
+      message: `WordPress directory name (slug) for this ${contentType}`,
+      default: defaultSlug
+    });
 
-  if (!pluginSlug || !pluginSlug.trim()) {
-    throw new Error('A plugin/theme slug is required.');
+    if (!pluginSlug || !pluginSlug.trim()) {
+      throw new Error('A plugin/theme slug is required.');
+    }
+
+    slug = pluginSlug.trim();
   }
-
-  const slug = pluginSlug.trim();
   const environments = existing ? { ...existing.environments } : {};
 
   const addEnvironment = async () => {
@@ -747,7 +758,7 @@ async function runConfigInitPrompts(basePath, options = {}) {
         default: 'custom'
       });
       const rawPath = await input({
-        message: 'Full path to plugin/theme directory',
+        message: contentType === 'wp-content' ? 'Full path to wp-content directory' : 'Full path to plugin/theme directory',
         default: ''
       });
       if (name && name.trim() && rawPath && rawPath.trim()) {
@@ -767,11 +778,16 @@ async function runConfigInitPrompts(basePath, options = {}) {
         process.stdout.write(
           `No site folders found in ${base}. Enter the path manually or create a site first.\n`
         );
-        const manual = await input({
-          message: `Path to ${contentType} directory for "${envType}"`,
-          default: envType === 'studio'
+        const manualDefault = contentType === 'wp-content'
+          ? (envType === 'studio'
+            ? path.join(base, '<site>', 'wp-content')
+            : path.join(base, '<site>', 'app', 'public', 'wp-content'))
+          : (envType === 'studio'
             ? path.join(base, '<site>', 'wp-content', contentType === 'theme' ? 'themes' : 'plugins', slug)
-            : path.join(base, '<site>', 'app', 'public', 'wp-content', contentType === 'theme' ? 'themes' : 'plugins', slug)
+            : path.join(base, '<site>', 'app', 'public', 'wp-content', contentType === 'theme' ? 'themes' : 'plugins', slug));
+        const manual = await input({
+          message: `Path to ${contentType === 'wp-content' ? 'wp-content' : contentType} directory for "${envType}"`,
+          default: manualDefault
         });
         if (manual && manual.trim()) {
           targetPath = manual.trim();
@@ -841,7 +857,8 @@ async function runConfigInitPrompts(basePath, options = {}) {
     agent,
     ...(agentBasePath && { agentBasePath }),
     wordpress: {
-      pluginSlug: slug,
+      contentType,
+      ...(slug && { pluginSlug: slug }),
       defaultEnvironment,
       environments
     }
@@ -853,7 +870,9 @@ async function runConfigInitPrompts(basePath, options = {}) {
 
   const createInitialLinks = await confirm({
     message:
-      'Create initial symlink(s) from this repo to your local environment(s)? (Points the plugin/theme slot at this worktree so you can use it before running linchpin wt switch.)',
+      contentType === 'wp-content'
+        ? 'Create initial symlink(s) from this repo to your local environment(s)? (Points the wp-content directory at this worktree so you can use it before running linchpin wt switch.)'
+        : 'Create initial symlink(s) from this repo to your local environment(s)? (Points the plugin/theme slot at this worktree so you can use it before running linchpin wt switch.)',
     default: true
   });
 
