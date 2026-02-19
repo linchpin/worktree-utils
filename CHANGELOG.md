@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.13](https://github.com/linchpin/worktree-utils/compare/v1.0.12...v1.0.13) (2026-02-19)
+
+
+### Bug Fixes 🐛
+
+* Search grandparent directory in worktree recovery logic ([f875ed4](https://github.com/linchpin/worktree-utils/commit/f875ed44f0716e9839fe765fa4c2188a5611e1f4))
+
 ## [1.0.12](https://github.com/linchpin/worktree-utils/compare/v1.0.11...v1.0.12) (2026-02-19)
 
 
