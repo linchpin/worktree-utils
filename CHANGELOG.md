@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.14](https://github.com/linchpin/worktree-utils/compare/v1.0.13...v1.0.14) (2026-02-19)
+
+
+### Bug Fixes 🐛
+
+* Add missing confirm import in config init prompts ([#19](https://github.com/linchpin/worktree-utils/issues/19)) ([49069e5](https://github.com/linchpin/worktree-utils/commit/49069e56b3b1fd9cbc6451779a8a3b20ad9d2eac))
+
 ## [1.0.13](https://github.com/linchpin/worktree-utils/compare/v1.0.12...v1.0.13) (2026-02-19)
 
 
