@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.15](https://github.com/linchpin/worktree-utils/compare/v1.0.14...v1.0.15) (2026-02-21)
+
+
+### Features ✨
+
+* **NO-TASK:** Add auto CWD after worktree switch ([d66ddd7](https://github.com/linchpin/worktree-utils/commit/d66ddd704238f6ee5d02b484e872c98df38c354d))
+
 ## [1.0.14](https://github.com/linchpin/worktree-utils/compare/v1.0.13...v1.0.14) (2026-02-19)
 
 
