@@ -19,7 +19,7 @@ test(
 
     const switchDryRun = runCli(fixture.basePath, ['wt', 'switch', '--dry-run', '--env', 'studio']);
     assertOk(switchDryRun, 'linchpin wt switch --dry-run should succeed');
-    assert.match(switchDryRun.stdout, /Would create parent directory|Would create symlink|Already linked/);
+    assert.match(switchDryRun.stderr, /Would create parent directory|Would create symlink|Already linked/);
 
     const createNew = runCli(fixture.basePath, ['wt', 'new', 'feature/smoke']);
     assertOk(createNew, 'linchpin wt new should succeed');
@@ -33,7 +33,7 @@ test(
 
     const switchLinked = runCli(fixture.basePath, ['wt', 'switch', 'feature/smoke', '--env', 'studio']);
     assertOk(switchLinked, 'linchpin wt switch <branch> should succeed');
-    assert.match(switchLinked.stdout, /Environment: studio/);
+    assert.match(switchLinked.stderr, /Environment: studio/);
     assert.equal(fs.realpathSync(fixture.pluginPath), fs.realpathSync(createdWorktree));
 
     fs.rmSync(path.join(createdWorktree, 'COPY_SOURCE.txt'), { force: true });

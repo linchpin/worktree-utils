@@ -43,7 +43,7 @@ test(
       switchFromSymlink,
       'linchpin wt switch should recover from broken gitdir when run via symlink path'
     );
-    assert.match(switchFromSymlink.stdout, /Environment: studio/);
+    assert.match(switchFromSymlink.stderr, /Environment: studio/);
   }
 );
 

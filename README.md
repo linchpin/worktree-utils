@@ -192,16 +192,38 @@ linchpin wt ls
 4. Repeat for the next worktree/branch.
 5. Clean up with `linchpin wt del` when the branch is merged.
 
-### 8. Shell helpers (recommended)
+### 8. Switch and cd in one step
 
-Use command substitution for path-returning commands:
+After `wt switch` repoints a symlink your shell is still in the **old** worktree. Wrap the command in `cd` to land in the new target automatically:
+
+```bash
+cd "$(linchpin wt switch feature/my-change)"
+cd "$(linchpin wt switch)"                     # interactive picker
+cd "$(linchpin wt switch --env localwp)"       # specific environment
+```
+
+When piped (wrapped in `$()`), informational output goes to stderr so you still see it, while stdout carries the symlink path for `cd`.
+
+**Optional: fully automatic with shell-init**
+
+If you prefer `linchpin wt switch` to handle the `cd` for you every time, add this to your shell profile (`~/.zshrc`, `~/.bashrc`, or `~/.config/fish/config.fish`):
+
+```bash
+eval "$(linchpin shell-init)"
+```
+
+This defines a thin wrapper that re-enters your current directory after a successful switch, so the shell picks up the repointed symlink. The shell is auto-detected from `$SHELL`. To force a specific shell: `eval "$(linchpin shell-init --shell zsh)"`.
+
+### 9. Path helpers
+
+Use command substitution for other path-returning commands:
 
 ```bash
 cd "$(linchpin wt cd)"
 cd "$(linchpin wt home)"
 ```
 
-### 9. Troubleshooting
+### 10. Troubleshooting
 
 - `Missing .linchpin.json`:
   Run `linchpin wt config init` in the base worktree (interactive prompts) or `linchpin wt config init --plugin-slug <slug> --no-interactive` for a default file.
@@ -217,10 +239,13 @@ cd "$(linchpin wt home)"
 ## Command surface
 
 ```bash
+linchpin shell-init [--shell bash|zsh|fish]
+
 linchpin wt ls [--json]
 linchpin wt current [--link] [--env <name>]
 linchpin wt switch [worktree|branch] [--env <name>] [--force] [--dry-run]
   # No argument in a TTY: interactive picker from available worktrees. Non-interactive: use current worktree.
+  # When piped, outputs the symlink target path for cd: cd "$(linchpin wt switch ...)"
 
 linchpin wt new [name]
 linchpin wt get <branch>
@@ -297,7 +322,7 @@ Hook environment variables include `LINCHPIN_BRANCH` and `LINCHPIN_WORKTREE`.
 ## Typical WordPress review flow
 
 1. Open a plugin worktree.
-2. Run `linchpin wt switch --env studio`.
+2. Run `cd "$(linchpin wt switch --env studio)"` to repoint the symlink and land in the new target.
 3. Use your existing WordPress environment to review that branch.
 4. Move to another worktree and switch again.
 

@@ -257,10 +257,16 @@ async function commandSwitch(cwd, argv) {
     dryRun: options.dryRun
   });
 
-  process.stdout.write(`${result.action}\n`);
-  process.stdout.write(
-    `Environment: ${environmentName} | Worktree: ${selected.worktree} | Branch: ${selected.branch || 'detached'}\n`
-  );
+  const info = `${result.action}\nEnvironment: ${environmentName} | Worktree: ${selected.worktree} | Branch: ${selected.branch || 'detached'}\n`;
+
+  if (process.stdout.isTTY) {
+    process.stdout.write(info);
+  } else {
+    process.stderr.write(info);
+    if (!options.dryRun) {
+      process.stdout.write(`${targetPath}\n`);
+    }
+  }
 
   return 0;
 }
