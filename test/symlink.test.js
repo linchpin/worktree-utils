@@ -31,3 +31,41 @@ test('ensurePluginLink creates and repoints symlink', () => {
   const secondReal = fs.realpathSync(target);
   assert.equal(secondReal, fs.realpathSync(sourceB));
 });
+
+test('ensurePluginLink replaces a broken symlink whose target was deleted', () => {
+  const root = makeTempDir();
+  const archived = path.join(root, 'repo@archived');
+  const main = path.join(root, 'repo@main');
+  const target = path.join(root, 'wp-content', 'plugins', 'my-plugin');
+
+  fs.mkdirSync(archived, { recursive: true });
+  fs.mkdirSync(main, { recursive: true });
+
+  ensurePluginLink({ sourcePath: archived, targetPath: target });
+  assert.equal(fs.realpathSync(target), fs.realpathSync(archived));
+
+  fs.rmSync(archived, { recursive: true, force: true });
+  const stat = fs.lstatSync(target);
+  assert.ok(stat.isSymbolicLink(), 'symlink entry itself still exists');
+  assert.ok(!fs.existsSync(target), 'symlink target is gone (broken)');
+
+  const result = ensurePluginLink({ sourcePath: main, targetPath: target });
+  assert.equal(result.changed, true);
+  assert.match(result.action, /symlink/i);
+
+  const newReal = fs.realpathSync(target);
+  assert.equal(newReal, fs.realpathSync(main));
+});
+
+test('ensurePluginLink no-ops when already linked to the same source', () => {
+  const root = makeTempDir();
+  const source = path.join(root, 'repo@main');
+  const target = path.join(root, 'wp-content', 'plugins', 'my-plugin');
+
+  fs.mkdirSync(source, { recursive: true });
+
+  ensurePluginLink({ sourcePath: source, targetPath: target });
+  const result = ensurePluginLink({ sourcePath: source, targetPath: target });
+  assert.equal(result.changed, false);
+  assert.match(result.action, /already linked/i);
+});

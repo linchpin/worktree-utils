@@ -622,13 +622,18 @@ function commandLink(cwd, argv) {
     throw new Error(`'${target}' does not exist in base worktree.`);
   }
 
-  if (pathExists(destination)) {
+  const existingStat = safeLstat(destination);
+  if (existingStat && !existingStat.isSymbolicLink()) {
     throw new Error(`'${target}' already exists in current worktree.`);
   }
 
   const parent = path.dirname(destination);
   if (!pathExists(parent)) {
     fs.mkdirSync(parent, { recursive: true });
+  }
+
+  if (existingStat) {
+    fs.unlinkSync(destination);
   }
 
   fs.symlinkSync(source, destination, fs.lstatSync(source).isDirectory() ? 'dir' : 'file');
@@ -1011,6 +1016,21 @@ function assertInLinkedWorktree(cwd, basePath) {
 
 function pathExists(filePath) {
   return fs.existsSync(filePath);
+}
+
+/**
+ * Returns the lstat result for a path without following symlinks,
+ * or null if the path does not exist at all.
+ *
+ * @param {string} filePath - Path to stat.
+ * @returns {fs.Stats|null}
+ */
+function safeLstat(filePath) {
+  try {
+    return fs.lstatSync(filePath);
+  } catch (_err) {
+    return null;
+  }
 }
 
 function remoteHead(cwd) {

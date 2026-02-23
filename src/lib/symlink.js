@@ -33,12 +33,8 @@ function ensurePluginLink({ sourcePath, targetPath, force = false, dryRun = fals
     }
 
     if (!dryRun) {
-      fs.rmSync(resolvedTarget, { force: true, recursive: true });
-      fs.symlinkSync(
-        resolvedSource,
-        resolvedTarget,
-        process.platform === 'win32' ? 'junction' : 'dir'
-      );
+      removeExisting(resolvedTarget);
+      createSymlink(resolvedSource, resolvedTarget);
     }
 
     return {
@@ -60,13 +56,52 @@ function ensurePluginLink({ sourcePath, targetPath, force = false, dryRun = fals
   }
 
   if (!dryRun) {
-    fs.symlinkSync(resolvedSource, resolvedTarget, process.platform === 'win32' ? 'junction' : 'dir');
+    createSymlink(resolvedSource, resolvedTarget);
   }
 
   return {
     changed: true,
     action: `${dryRun ? 'Would create' : 'Created'} symlink: ${resolvedTarget} -> ${resolvedSource}`
   };
+}
+
+/**
+ * Creates a symlink, removing any stale entry (e.g. broken symlink) that
+ * exists at the target path. Handles EEXIST from platform edge-cases where
+ * lstatSync fails to detect the dangling link.
+ *
+ * @param {string} source - Absolute path the symlink should point to.
+ * @param {string} target - Absolute path where the symlink will be created.
+ */
+function createSymlink(source, target) {
+  const type = process.platform === 'win32' ? 'junction' : 'dir';
+  try {
+    fs.symlinkSync(source, target, type);
+  } catch (err) {
+    if (err.code !== 'EEXIST') throw err;
+    removeExisting(target);
+    fs.symlinkSync(source, target, type);
+  }
+}
+
+/**
+ * Removes a filesystem entry (symlink, file, or directory) if it exists.
+ * Uses unlinkSync for symlinks to avoid following a broken target.
+ *
+ * @param {string} targetPath - Absolute path to remove.
+ */
+function removeExisting(targetPath) {
+  let stat;
+  try {
+    stat = fs.lstatSync(targetPath);
+  } catch (_err) {
+    return;
+  }
+  if (stat.isSymbolicLink()) {
+    fs.unlinkSync(targetPath);
+  } else {
+    fs.rmSync(targetPath, { force: true, recursive: true });
+  }
 }
 
 function readExistingTarget(targetPath) {
@@ -84,9 +119,17 @@ function readExistingTarget(targetPath) {
   }
 }
 
-function safeReadlinkResolved(targetPath) {
+/**
+ * Resolves the absolute target of a symlink. Uses readlinkSync so it works
+ * for broken symlinks whose target directory no longer exists.
+ *
+ * @param {string} linkPath - Absolute path to the symlink.
+ * @returns {string|null} Resolved absolute path, or null on failure.
+ */
+function safeReadlinkResolved(linkPath) {
   try {
-    return fs.realpathSync(targetPath);
+    const raw = fs.readlinkSync(linkPath);
+    return path.resolve(path.dirname(linkPath), raw);
   } catch (_error) {
     return null;
   }
