@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.0.17](https://github.com/linchpin/worktree-utils/compare/v1.0.16...v1.0.17) (2026-03-05)
+
+
+### Features ✨
+
+* **NO-TASK:** Add ability to run post switch commands ([b15df86](https://github.com/linchpin/worktree-utils/commit/b15df864d1e9b9594c31c8063e89dbe2c0940185))
+
+
+### Miscellaneous Chores 🧹
+
+* **deps:** update actions/checkout action to v6 ([#28](https://github.com/linchpin/worktree-utils/issues/28)) ([37a205b](https://github.com/linchpin/worktree-utils/commit/37a205b3597953fc3c5d9902b9815096dfe184db))
+* **deps:** update actions/setup-node action to v6 ([#29](https://github.com/linchpin/worktree-utils/issues/29)) ([d8d9da7](https://github.com/linchpin/worktree-utils/commit/d8d9da71d253cec013c66327d6c4f95da8d6b7ef))
+* **deps:** update commitlint monorepo to v20.4.3 ([#24](https://github.com/linchpin/worktree-utils/issues/24)) ([566f358](https://github.com/linchpin/worktree-utils/commit/566f358849ce8d5405e66819df54f028e63afc5b))
+* **deps:** update dependency @inquirer/prompts to v8.3.0 ([#25](https://github.com/linchpin/worktree-utils/issues/25)) ([a029aee](https://github.com/linchpin/worktree-utils/commit/a029aee222e2d1ef9f4af5782e16822b6515fe63))
+
 ## [1.0.16](https://github.com/linchpin/worktree-utils/compare/v1.0.15...v1.0.16) (2026-02-23)
 
 
