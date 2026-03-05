@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.16](https://github.com/linchpin/worktree-utils/compare/v1.0.15...v1.0.16) (2026-02-23)
+
+
+### Changes to Existing Features 💅
+
+* **NO-TASK:** Better switching even when symlink is archived by agent ([be24be3](https://github.com/linchpin/worktree-utils/commit/be24be3e02ab5e02761ec8f94a39e5b3912d4ad3))
+
 ## [1.0.15](https://github.com/linchpin/worktree-utils/compare/v1.0.14...v1.0.15) (2026-02-21)
 
 
