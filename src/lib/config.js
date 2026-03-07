@@ -68,40 +68,15 @@ function normalizeConfig(input) {
       ? root.agentBasePath.trim()
       : null;
 
-  const postSwitchCommands = normalizePostSwitchCommands(root.postSwitchCommands);
-
   return {
     agent,
     agentBasePath,
-    postSwitchCommands,
     wordpress: {
       pluginSlug: wp.pluginSlug || root.pluginSlug || null,
       defaultEnvironment,
       environments
     }
   };
-}
-
-/**
- * Normalise the postSwitchCommands field into a string array.
- *
- * @param {*} raw - Value from config JSON.
- * @returns {string[]}
- */
-function normalizePostSwitchCommands(raw) {
-  if (!raw) {
-    return [];
-  }
-
-  if (Array.isArray(raw)) {
-    return raw.filter((cmd) => typeof cmd === 'string' && cmd.trim()).map((cmd) => cmd.trim());
-  }
-
-  if (typeof raw === 'string' && raw.trim()) {
-    return [raw.trim()];
-  }
-
-  return [];
 }
 
 function normalizeEnvironments(rawEnvironments) {
@@ -159,12 +134,9 @@ function writeConfig(basePath, config, options = {}) {
     ])
   );
 
-  const postSwitchCommands = normalizePostSwitchCommands(config.postSwitchCommands);
-
   const payload = {
     ...(config.agent && { agent: config.agent }),
     ...(config.agentBasePath && { agentBasePath: collapseHome(config.agentBasePath) }),
-    ...(postSwitchCommands.length > 0 && { postSwitchCommands }),
     wordpress: {
       pluginSlug: config.wordpress.pluginSlug,
       defaultEnvironment: config.wordpress.defaultEnvironment,
@@ -231,7 +203,6 @@ module.exports = {
   expandHome,
   getAgentBasePath,
   normalizeConfig,
-  normalizePostSwitchCommands,
   readConfig,
   writeConfig,
   writeDefaultConfig

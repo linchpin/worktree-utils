@@ -1,1 +1,1 @@
-npm test
+#!/usr/bin/env sh

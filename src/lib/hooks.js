@@ -11,7 +11,7 @@ function findHookFile(basePath, hookName) {
   return null;
 }
 
-function runHook(basePath, hookName, env = {}) {
+function runHook(basePath, hookName, env = {}, options = {}) {
   const hookFile = findHookFile(basePath, hookName);
 
   if (!hookFile) {
@@ -21,12 +21,17 @@ function runHook(basePath, hookName, env = {}) {
     };
   }
 
-  runCommand('bash', ['-c', 'source "$1"', 'linchpin-hook', hookFile], {
+  const execOptions = {
     env: {
       ...process.env,
       ...env
     }
-  });
+  };
+  if (options.cwd) {
+    execOptions.cwd = options.cwd;
+  }
+
+  runCommand('bash', ['-c', 'source "$1"', 'linchpin-hook', hookFile], execOptions);
 
   return {
     ran: true,

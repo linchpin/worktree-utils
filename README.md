@@ -305,6 +305,7 @@ Hook files are sourced in a subshell when present:
 
 Supported lifecycle hooks:
 
+- `pre-switch`, `post-switch`
 - `pre-new`, `post-new`
 - `pre-get`, `post-get`
 - `pre-extract`, `post-extract`
@@ -315,9 +316,18 @@ Manual invocation:
 
 ```bash
 linchpin wt invoke pre-new
+linchpin wt invoke post-switch
 ```
 
-Hook environment variables include `LINCHPIN_BRANCH` and `LINCHPIN_WORKTREE`.
+Hook environment variables include `LINCHPIN_BRANCH`, `LINCHPIN_WORKTREE`, and for switch hooks `LINCHPIN_ENVIRONMENT`.
+
+To run commands after switching worktrees (e.g. `composer install`, `npm run build`), create `.linchpin/hooks/post-switch`. The hook runs with the worktree as the current directory:
+
+```bash
+#!/bin/bash
+composer install
+npm install && npm run build
+```
 
 ## Typical WordPress review flow
 

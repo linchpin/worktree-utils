@@ -249,6 +249,15 @@ async function commandSwitch(cwd, argv) {
 
   const sourcePath = selected.worktree;
   const targetPath = path.resolve(expandHome(targetPathRaw));
+  const switchEnv = {
+    LINCHPIN_WORKTREE: sourcePath,
+    LINCHPIN_BRANCH: selected.branch || 'detached',
+    LINCHPIN_ENVIRONMENT: environmentName
+  };
+
+  if (!options.dryRun) {
+    runHook(basePath, 'pre-switch', switchEnv);
+  }
 
   const result = ensurePluginLink({
     sourcePath,
@@ -268,8 +277,8 @@ async function commandSwitch(cwd, argv) {
     }
   }
 
-  if (!options.dryRun && config.postSwitchCommands && config.postSwitchCommands.length > 0) {
-    runPostSwitchCommands(config.postSwitchCommands, sourcePath);
+  if (!options.dryRun) {
+    runHook(basePath, 'post-switch', switchEnv, { cwd: sourcePath });
   }
 
   return 0;
@@ -868,50 +877,9 @@ async function runConfigInitPrompts(basePath, options = {}) {
     default: currentDefault
   });
 
-  const existingPostSwitch = options.existingConfig?.postSwitchCommands || [];
-  const postSwitchCommands = [...existingPostSwitch];
-
-  const wantsPostSwitch = await confirm({
-    message: 'Configure commands to run after switching worktrees? (e.g. composer install, npm run build)',
-    default: postSwitchCommands.length > 0
-  });
-
-  if (wantsPostSwitch) {
-    if (postSwitchCommands.length > 0) {
-      process.stdout.write('Current post-switch commands:\n');
-      for (let i = 0; i < postSwitchCommands.length; i++) {
-        process.stdout.write(`  ${i + 1}. ${postSwitchCommands[i]}\n`);
-      }
-
-      const keepExisting = await confirm({
-        message: 'Keep existing commands and add more?',
-        default: true
-      });
-
-      if (!keepExisting) {
-        postSwitchCommands.length = 0;
-      }
-    }
-
-    let addMore = true;
-    while (addMore) {
-      const cmd = await input({
-        message: 'Shell command to run after switch (leave empty to finish)',
-        default: ''
-      });
-
-      if (cmd && cmd.trim()) {
-        postSwitchCommands.push(cmd.trim());
-      } else {
-        addMore = false;
-      }
-    }
-  }
-
   const config = {
     agent,
     ...(agentBasePath && { agentBasePath }),
-    ...(postSwitchCommands.length > 0 && { postSwitchCommands }),
     wordpress: {
       contentType,
       ...(slug && { pluginSlug: slug }),
@@ -986,104 +954,8 @@ function commandConfig(cwd, argv) {
     return 0;
   }
 
-  if (sub === 'hooks') {
-    return commandConfigHooks(cwd, argv.slice(1));
-  }
-
   printConfigHelp();
   return 0;
-}
-
-/**
- * Manage post-switch commands stored in the config.
- *
- * @param {string}   cwd  - Current working directory.
- * @param {string[]} argv - Remaining args after "config hooks".
- * @returns {number} Exit code.
- */
-function commandConfigHooks(cwd, argv) {
-  const action = argv[0] || 'list';
-  const basePath = getBaseWorktreePath(cwd);
-
-  if (action === 'list' || action === 'ls') {
-    const config = readConfig(basePath);
-    const commands = config.postSwitchCommands || [];
-
-    if (commands.length === 0) {
-      process.stdout.write('No post-switch commands configured.\n');
-      return 0;
-    }
-
-    process.stdout.write('Post-switch commands:\n');
-    for (let i = 0; i < commands.length; i++) {
-      process.stdout.write(`  ${i + 1}. ${commands[i]}\n`);
-    }
-    return 0;
-  }
-
-  if (action === 'add') {
-    const command = argv.slice(1).join(' ').trim();
-    if (!command) {
-      throw new Error('Usage: linchpin wt config hooks add <command>');
-    }
-
-    const config = readConfig(basePath);
-    const commands = config.postSwitchCommands || [];
-    commands.push(command);
-
-    writeConfig(basePath, { ...config, postSwitchCommands: commands }, { force: true });
-    process.stdout.write(`Added post-switch command: ${command}\n`);
-    return 0;
-  }
-
-  if (action === 'remove' || action === 'rm') {
-    const indexArg = argv[1];
-    if (!indexArg) {
-      throw new Error('Usage: linchpin wt config hooks remove <number>');
-    }
-
-    const index = parseInt(indexArg, 10);
-    const config = readConfig(basePath);
-    const commands = config.postSwitchCommands || [];
-
-    if (Number.isNaN(index) || index < 1 || index > commands.length) {
-      throw new Error(`Invalid index ${indexArg}. Use 'linchpin wt config hooks list' to see available commands (1-${commands.length}).`);
-    }
-
-    const [removed] = commands.splice(index - 1, 1);
-    writeConfig(basePath, { ...config, postSwitchCommands: commands }, { force: true });
-    process.stdout.write(`Removed post-switch command: ${removed}\n`);
-    return 0;
-  }
-
-  printConfigHooksHelp();
-  return 0;
-}
-
-/**
- * Run each post-switch command sequentially in the worktree directory.
- *
- * Commands are executed via the user's shell. Failures are reported to
- * stderr but do not abort subsequent commands.
- *
- * @param {string[]} commands - Shell command strings.
- * @param {string}   cwd     - Directory to execute in (typically the worktree path).
- */
-function runPostSwitchCommands(commands, cwd) {
-  process.stderr.write('Running post-switch commands…\n');
-
-  for (const cmd of commands) {
-    process.stderr.write(`  → ${cmd}\n`);
-    const result = runCommand('bash', ['-c', cmd], { cwd, allowFailure: true });
-
-    if (result.stdout) {
-      process.stderr.write(`${result.stdout}\n`);
-    }
-
-    if (!result.ok) {
-      process.stderr.write(`  ✗ Command failed: ${result.stderr || '(no output)'}\n`);
-    }
-  }
 }
 
 function parseSwitchArgs(argv) {
@@ -1235,7 +1107,6 @@ function printWtHelp() {
   process.stdout.write(`  linchpin wt invoke <hook>\n`);
   process.stdout.write(`  linchpin wt config init [--plugin-slug <slug>] [--force] [--no-interactive]\n`);
   process.stdout.write(`  linchpin wt config show\n`);
-  process.stdout.write(`  linchpin wt config hooks [list|add|remove]\n`);
   process.stdout.write(`\n`);
   process.stdout.write(`Tips:\n`);
   process.stdout.write(`  cd \"$(linchpin wt cd)\"               # interactive jump with fzf\n`);
@@ -1247,22 +1118,6 @@ function printConfigHelp() {
   process.stdout.write('Usage:\n');
   process.stdout.write('  linchpin wt config init [--plugin-slug <slug>] [--force] [--no-interactive]\n');
   process.stdout.write('  linchpin wt config show\n');
-  process.stdout.write('  linchpin wt config hooks list\n');
-  process.stdout.write('  linchpin wt config hooks add <command>\n');
-  process.stdout.write('  linchpin wt config hooks remove <number>\n');
-}
-
-function printConfigHooksHelp() {
-  process.stdout.write('linchpin wt config hooks\n\n');
-  process.stdout.write('Manage commands that run automatically after "linchpin wt switch".\n\n');
-  process.stdout.write('Usage:\n');
-  process.stdout.write('  linchpin wt config hooks list              List configured post-switch commands\n');
-  process.stdout.write('  linchpin wt config hooks add <command>     Add a post-switch command\n');
-  process.stdout.write('  linchpin wt config hooks remove <number>   Remove a command by its number\n');
-  process.stdout.write('\nExamples:\n');
-  process.stdout.write('  linchpin wt config hooks add "composer install"\n');
-  process.stdout.write('  linchpin wt config hooks add "npm install && npm run build"\n');
-  process.stdout.write('  linchpin wt config hooks remove 1\n');
 }
 
 module.exports = {
