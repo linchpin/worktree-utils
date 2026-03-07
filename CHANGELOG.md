@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.18](https://github.com/linchpin/worktree-utils/compare/v1.0.17...v1.0.18) (2026-03-07)
+
+
+### Miscellaneous Chores 🧹
+
+* **NO-TASK:** Replace custom scripting with hook ([2145221](https://github.com/linchpin/worktree-utils/commit/214522159309038220835912ddbc0343024ba3ad))
+
 ## [1.0.17](https://github.com/linchpin/worktree-utils/compare/v1.0.16...v1.0.17) (2026-03-05)
 
 
