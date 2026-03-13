@@ -136,5 +136,6 @@ function safeReadlinkResolved(linkPath) {
 }
 
 module.exports = {
-  ensurePluginLink
+  ensurePluginLink,
+  readExistingTarget
 };

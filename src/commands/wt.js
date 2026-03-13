@@ -17,7 +17,7 @@ const {
   writeConfig,
   writeDefaultConfig
 } = require('../lib/config');
-const { ensurePluginLink } = require('../lib/symlink');
+const { ensurePluginLink, readExistingTarget } = require('../lib/symlink');
 const { findHookFile, runHook } = require('../lib/hooks');
 
 /** Environment types: base path getters for config init. */
@@ -84,24 +84,25 @@ async function pickWorktreeWithSelect(worktrees) {
   return worktrees.find((item) => item.worktree === choice);
 }
 
-function buildTargetPath(envType, site, contentDir, slug, wpEnvBase) {
+function buildTargetPath(envType, site, contentDir, slug, wpEnvBase, linkName) {
   const isWpContent = contentDir === 'wp-content';
+  const wpContentDir = linkName || 'wp-content';
   const contentSubdir = contentDir === 'theme' ? 'themes' : 'plugins';
   if (envType === 'studio') {
     const base = getEnvTypeBasePath('studio');
     return isWpContent
-      ? path.join(base, site, 'wp-content')
+      ? path.join(base, site, wpContentDir)
       : path.join(base, site, 'wp-content', contentSubdir, slug);
   }
   if (envType === 'localwp') {
     const base = getEnvTypeBasePath('localwp');
     return isWpContent
-      ? path.join(base, site, 'app', 'public', 'wp-content')
+      ? path.join(base, site, 'app', 'public', wpContentDir)
       : path.join(base, site, 'app', 'public', 'wp-content', contentSubdir, slug);
   }
   if (envType === 'wp-env' && wpEnvBase) {
     return isWpContent
-      ? path.join(wpEnvBase, 'wp-content')
+      ? path.join(wpEnvBase, wpContentDir)
       : path.join(wpEnvBase, 'wp-content', contentSubdir, slug);
   }
   return '';
@@ -747,10 +748,11 @@ async function runConfigInitPrompts(basePath, options = {}) {
       { value: 'theme', name: 'Theme' },
       { value: 'wp-content', name: 'WP Content Project (entire wp-content folder is the repo)' }
     ],
-    default: existing?.contentType || 'plugin'
+    default: options.defaultContentType || existing?.contentType || 'plugin'
   });
 
   let slug = '';
+  let symlinkName = '';
   if (contentType !== 'wp-content') {
     const pluginSlug = await input({
       message: `WordPress directory name (slug) for this ${contentType}`,
@@ -762,6 +764,12 @@ async function runConfigInitPrompts(basePath, options = {}) {
     }
 
     slug = pluginSlug.trim();
+  } else {
+    const linkName = await input({
+      message: 'Symlink name (the directory name that will be created in the target environment)',
+      default: existing?.symlinkName || 'wp-content'
+    });
+    symlinkName = (linkName && linkName.trim()) ? linkName.trim() : 'wp-content';
   }
   const environments = existing ? { ...existing.environments } : {};
 
@@ -802,10 +810,11 @@ async function runConfigInitPrompts(basePath, options = {}) {
         process.stdout.write(
           `No site folders found in ${base}. Enter the path manually or create a site first.\n`
         );
+        const wpDir = symlinkName || 'wp-content';
         const manualDefault = contentType === 'wp-content'
           ? (envType === 'studio'
-            ? path.join(base, '<site>', 'wp-content')
-            : path.join(base, '<site>', 'app', 'public', 'wp-content'))
+            ? path.join(base, '<site>', wpDir)
+            : path.join(base, '<site>', 'app', 'public', wpDir))
           : (envType === 'studio'
             ? path.join(base, '<site>', 'wp-content', contentType === 'theme' ? 'themes' : 'plugins', slug)
             : path.join(base, '<site>', 'app', 'public', 'wp-content', contentType === 'theme' ? 'themes' : 'plugins', slug));
@@ -826,7 +835,7 @@ async function runConfigInitPrompts(basePath, options = {}) {
           });
         }
         if (site) {
-          targetPath = buildTargetPath(envType, site, contentType, slug);
+          targetPath = buildTargetPath(envType, site, contentType, slug, undefined, symlinkName);
           envName = `${envType}-${site}`;
         }
       }
@@ -837,7 +846,7 @@ async function runConfigInitPrompts(basePath, options = {}) {
         default: defaultWpEnv
       });
       if (wpEnvRoot && wpEnvRoot.trim()) {
-        targetPath = buildTargetPath('wp-env', null, contentType, slug, wpEnvRoot.trim());
+        targetPath = buildTargetPath('wp-env', null, contentType, slug, wpEnvRoot.trim(), symlinkName);
         envName = 'wp-env';
       }
     }
@@ -883,6 +892,7 @@ async function runConfigInitPrompts(basePath, options = {}) {
     wordpress: {
       contentType,
       ...(slug && { pluginSlug: slug }),
+      ...(symlinkName && symlinkName !== 'wp-content' && { symlinkName }),
       defaultEnvironment,
       environments
     }
@@ -903,6 +913,49 @@ async function runConfigInitPrompts(basePath, options = {}) {
   if (createInitialLinks) {
     for (const [envName, targetPathRaw] of Object.entries(environments)) {
       const targetPath = path.resolve(expandHome(targetPathRaw));
+
+      // Check if a real (non-symlink) directory already exists at the target
+      const existingTarget = readExistingTarget(targetPath);
+      if (existingTarget.exists && !existingTarget.isSymlink) {
+        process.stdout.write(`\n  A folder already exists at: ${targetPath}\n`);
+        const conflictAction = await select({
+          message: `"${envName}" target already exists. How would you like to handle it?`,
+          choices: [
+            { value: 'backup', name: `Rename existing folder to ${path.basename(targetPath)}.bkp` },
+            { value: 'delete', name: 'Delete existing folder' },
+            { value: 'skip', name: 'Skip this environment' }
+          ]
+        });
+
+        if (conflictAction === 'skip') {
+          process.stdout.write(`  ${envName}: Skipped\n`);
+          continue;
+        }
+
+        if (conflictAction === 'delete') {
+          const confirmDelete = await confirm({
+            message: `Are you sure you want to permanently delete ${targetPath}?`,
+            default: false
+          });
+          if (!confirmDelete) {
+            process.stdout.write(`  ${envName}: Skipped (delete cancelled)\n`);
+            continue;
+          }
+          fs.rmSync(targetPath, { force: true, recursive: true });
+          process.stdout.write(`  ${envName}: Deleted existing folder\n`);
+        }
+
+        if (conflictAction === 'backup') {
+          const backupPath = `${targetPath}.bkp`;
+          if (fs.existsSync(backupPath)) {
+            process.stderr.write(`  ${envName}: Backup path already exists: ${backupPath}. Skipping.\n`);
+            continue;
+          }
+          fs.renameSync(targetPath, backupPath);
+          process.stdout.write(`  ${envName}: Renamed existing folder to ${path.basename(backupPath)}\n`);
+        }
+      }
+
       try {
         const result = ensurePluginLink({
           sourcePath: basePath,
@@ -928,18 +981,25 @@ function commandConfig(cwd, argv) {
   if (sub === 'init') {
     const basePath = getBaseWorktreePath(cwd);
     const pluginSlugOpt = readOptionValue(argv.slice(1), '--plugin-slug');
+    const contentTypeOpt = readOptionValue(argv.slice(1), '--type') || readOptionValue(argv.slice(1), '--content-type');
     const force = argv.includes('--force');
     const noInteractive = argv.includes('--no-interactive');
+
+    if (contentTypeOpt && !['plugin', 'theme', 'wp-content'].includes(contentTypeOpt)) {
+      process.stderr.write(`Invalid --type "${contentTypeOpt}". Must be one of: plugin, theme, wp-content\n`);
+      return 1;
+    }
 
     const usePrompts = process.stdin.isTTY && !noInteractive;
 
     if (usePrompts) {
-      return runConfigInitPrompts(basePath, { force, defaultPluginSlug: pluginSlugOpt });
+      return runConfigInitPrompts(basePath, { force, defaultPluginSlug: pluginSlugOpt, defaultContentType: contentTypeOpt });
     }
 
     const filePath = writeDefaultConfig(basePath, {
       force,
-      pluginSlug: pluginSlugOpt
+      pluginSlug: pluginSlugOpt,
+      contentType: contentTypeOpt
     });
 
     process.stdout.write(`Created ${filePath}\n`);
@@ -1116,7 +1176,7 @@ function printWtHelp() {
 function printConfigHelp() {
   process.stdout.write('linchpin wt config\n\n');
   process.stdout.write('Usage:\n');
-  process.stdout.write('  linchpin wt config init [--plugin-slug <slug>] [--force] [--no-interactive]\n');
+  process.stdout.write('  linchpin wt config init [--type <plugin|theme|wp-content>] [--plugin-slug <slug>] [--force] [--no-interactive]\n');
   process.stdout.write('  linchpin wt config show\n');
 }
 
