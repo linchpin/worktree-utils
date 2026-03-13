@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.0.19](https://github.com/linchpin/worktree-utils/compare/v1.0.18...v1.0.19) (2026-03-13)
+
+
+### Features ✨
+
+* **config-init:** support wp-content projects with conflict resolution ([#33](https://github.com/linchpin/worktree-utils/issues/33)) ([fe834c1](https://github.com/linchpin/worktree-utils/commit/fe834c16466e51fb8bd20b7cccfeda8c79661fdd))
+
+
+### Miscellaneous Chores 🧹
+
+* **deps:** update commitlint monorepo to v20.4.4 ([#32](https://github.com/linchpin/worktree-utils/issues/32)) ([1297b8e](https://github.com/linchpin/worktree-utils/commit/1297b8e17fdd18b23ba783f113ba12e92a5c42a6))
+
 ## [1.0.18](https://github.com/linchpin/worktree-utils/compare/v1.0.17...v1.0.18) (2026-03-07)
 
 
