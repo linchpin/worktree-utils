@@ -150,17 +150,27 @@ function writeConfig(basePath, config, options = {}) {
 }
 
 function writeDefaultConfig(basePath, options = {}) {
+  const contentType = options.contentType || 'plugin';
   const pluginSlug = options.pluginSlug || path.basename(basePath);
+  const isWpContent = contentType === 'wp-content';
+  const contentSubdir = contentType === 'theme' ? 'themes' : 'plugins';
 
   const defaultConfig = {
     wordpress: {
-      pluginSlug,
+      contentType,
+      ...(isWpContent ? {} : { pluginSlug }),
       defaultEnvironment: 'studio',
-      environments: {
-        studio: `/path/to/wordpress/wp-content/plugins/${pluginSlug}`,
-        'wp-env': `/path/to/.wp-env/.../plugins/${pluginSlug}`,
-        localwp: `${os.homedir()}/Local Sites/<site>/app/public/wp-content/plugins/${pluginSlug}`
-      }
+      environments: isWpContent
+        ? {
+            studio: '/path/to/wordpress/wp-content',
+            'wp-env': '/path/to/.wp-env/.../wp-content',
+            localwp: `${os.homedir()}/Local Sites/<site>/app/public/wp-content`
+          }
+        : {
+            studio: `/path/to/wordpress/wp-content/${contentSubdir}/${pluginSlug}`,
+            'wp-env': `/path/to/.wp-env/.../${contentSubdir}/${pluginSlug}`,
+            localwp: `${os.homedir()}/Local Sites/<site>/app/public/wp-content/${contentSubdir}/${pluginSlug}`
+          }
     }
   };
 

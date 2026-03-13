@@ -121,32 +121,32 @@ linchpin wt config init
 
 When run in an interactive terminal, you're guided through:
 
-1. **Plugin or theme** – Whether this repo is a WordPress plugin or theme (paths use `plugins/<slug>` or `themes/<slug>`).
-2. **Slug** – The WordPress directory name (defaults to the repo directory name). Keep the default or type a different slug.
+1. **Plugin, theme, or wp-content** – Whether this repo is a WordPress plugin, theme, or a full wp-content project (the entire wp-content folder is the repo). You can pre-select this with `--type <plugin|theme|wp-content>`.
+2. **Slug / symlink name** – For plugins and themes, the WordPress directory name (defaults to the repo directory name). For wp-content projects, the symlink name (defaults to `wp-content`) — useful when your repo has a client name instead of `wp-content`.
 3. **Environment(s)** – For each environment: **Environment type** (Studio, LocalWP, wp-env, or Other), which sets the base folder; then for Studio/LocalWP you **pick a site** from that base (list or `fzf` if installed), or for wp-env you enter the WordPress root path; for Other you enter name and full path.
 4. Choose the **default environment** for `linchpin wt switch`.
 
 This creates `.linchpin.json`. You can edit it later if paths or environments change.
 
-5. **Create initial symlink(s)** – If the target already exists and is not a symlink, that environment is skipped; run `linchpin wt switch --env <name> --force` to replace it.
+5. **Create initial symlink(s)** – If the target already exists as a real folder (not a symlink), you're prompted to **back it up** (rename with `.bkp` suffix), **delete** it (with confirmation), or **skip** that environment.
 
 If `.linchpin.json` already exists, the flow offers **Overwrite**, **Edit** (keep existing and add more environments), or **Cancel**.
 
 For scripts or CI (no TTY), use non-interactive mode so a default template is written without prompts:
 
 ```bash
-linchpin wt config init --plugin-slug <plugin-slug> [--force] [--no-interactive]
+linchpin wt config init --type <plugin|theme|wp-content> [--plugin-slug <slug>] [--force] [--no-interactive]
 ```
 
-Use `--force` to overwrite an existing `.linchpin.json` without prompting. Use `--no-interactive` to skip prompts even when running in a terminal.
+Use `--type wp-content` when your repo represents an entire wp-content folder (common for client projects where the repo is named after the client, not `wp-content`). Use `--force` to overwrite an existing `.linchpin.json` without prompting. Use `--no-interactive` to skip prompts even when running in a terminal.
 
 ### 4. Paths built by config init
 
 For Studio and LocalWP, paths are built from the environment type and the site you pick:
 
-- **Studio**: `~/Studio/<site>/wp-content/plugins|themes/<slug>`
-- **LocalWP**: `~/Local Sites/<site>/app/public/wp-content/plugins|themes/<slug>`
-- **wp-env**: You provide the WordPress root; the CLI appends `wp-content/plugins|themes/<slug>`.
+- **Studio**: `~/Studio/<site>/wp-content/plugins|themes/<slug>` (or `~/Studio/<site>/wp-content` for wp-content projects)
+- **LocalWP**: `~/Local Sites/<site>/app/public/wp-content/plugins|themes/<slug>` (or `…/wp-content` for wp-content projects)
+- **wp-env**: You provide the WordPress root; the CLI appends `wp-content/plugins|themes/<slug>` (or `wp-content` for wp-content projects).
 
 Use absolute paths in `.linchpin.json` if you edit by hand. `~` is supported.
 
@@ -226,7 +226,7 @@ cd "$(linchpin wt home)"
 ### 10. Troubleshooting
 
 - `Missing .linchpin.json`:
-  Run `linchpin wt config init` in the base worktree (interactive prompts) or `linchpin wt config init --plugin-slug <slug> --no-interactive` for a default file.
+  Run `linchpin wt config init` in the base worktree (interactive prompts) or `linchpin wt config init --type plugin --plugin-slug <slug> --no-interactive` for a default file.
 - `Environment '<name>' is not configured`:
   Add the environment key in `.linchpin.json`.
 - `Target exists and is not a symlink`:
@@ -260,7 +260,7 @@ linchpin wt copy <path>
 linchpin wt link <path>
 linchpin wt invoke <hook>
 
-linchpin wt config init [--plugin-slug <slug>] [--force] [--no-interactive]
+linchpin wt config init [--type <plugin|theme|wp-content>] [--plugin-slug <slug>] [--force] [--no-interactive]
 linchpin wt config show
 ```
 
@@ -274,17 +274,50 @@ Shell usage notes:
 
 Create `.linchpin.json` in the base repository root. The easiest way is to run `linchpin wt config init` in a terminal and follow the prompts. You can also create or edit the file manually:
 
+Plugin/theme project:
+
 ```json
 {
   "agent": "conductor",
   "agentBasePath": "/Users/you/conductor",
   "wordpress": {
+    "contentType": "plugin",
     "pluginSlug": "my-plugin",
     "defaultEnvironment": "studio",
     "environments": {
       "studio": "/Users/you/Sites/studio/wp-content/plugins/my-plugin",
       "wp-env": "/Users/you/Documents/projects/site/.wp-env/.../plugins/my-plugin",
       "localwp": "/Users/you/Local Sites/site/app/public/wp-content/plugins/my-plugin"
+    }
+  }
+}
+```
+
+WP-content project (repo is the entire wp-content folder):
+
+```json
+{
+  "agent": "conductor",
+  "wordpress": {
+    "contentType": "wp-content",
+    "defaultEnvironment": "localwp",
+    "environments": {
+      "localwp": "/Users/you/Local Sites/site/app/public/wp-content"
+    }
+  }
+}
+```
+
+If the repo uses a custom symlink name (e.g. the repo is named after the client), add `"symlinkName"`:
+
+```json
+{
+  "wordpress": {
+    "contentType": "wp-content",
+    "symlinkName": "client-wp-content",
+    "defaultEnvironment": "localwp",
+    "environments": {
+      "localwp": "/Users/you/Local Sites/site/app/public/client-wp-content"
     }
   }
 }
