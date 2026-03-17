@@ -707,38 +707,78 @@ async function runConfigInitPrompts(basePath, options = {}) {
   }
 
   const existing = options.existingConfig?.wordpress;
-  const existingAgent = options.existingConfig?.agent;
-  const existingAgentBasePath = options.existingConfig?.agentBasePath;
+  const existingAgents = options.existingConfig?.agents;
+  const existingDefaultAgent = options.existingConfig?.defaultAgent;
   const defaultSlug = existing?.pluginSlug || options.defaultPluginSlug || path.basename(basePath);
 
-  // Which agent (defines what worktree folders we swap between)
-  const agent = await select({
+  const { checkbox } = await import('@inquirer/prompts');
+
+  const agentChoices = [
+    { value: 'conductor', name: 'Conductor (~/conductor)' },
+    { value: 'claude-code', name: 'Claude Code (~/Documents)' },
+    { value: 'codex', name: 'Codex (~/Documents/GitHub)' },
+    {
+      value: 'custom',
+      name: 'Custom Path (e.g. ~/my-projects — add another base directory)'
+    }
+  ];
+
+  const defaultAgentSelection =
+    existingAgents && Object.keys(existingAgents).length > 0
+      ? Object.keys(existingAgents)
+      : options.existingConfig?.agent
+        ? [options.existingConfig.agent]
+        : existingDefaultAgent
+          ? [existingDefaultAgent]
+          : [];
+
+  const selectedAgentValues = await checkbox({
     message:
-      'Which agent are you using? (This defines which worktree folders we\'ll swap between.)',
-    choices: [
-      { value: 'conductor', name: 'Conductor' },
-      { value: 'claude-code', name: 'Claude Code' },
-      { value: 'codex', name: 'Codex' },
-      {
-        value: 'custom',
-        name: 'Custom Path (works with any directory — use if not using a standard path from the agents above)'
-      }
-    ],
-    default: existingAgent || null
+      'Which agents do you use? (We\'ll look for worktrees in all selected paths — e.g. Codex for some work, Conductor for another.)',
+    choices: agentChoices,
+    default: defaultAgentSelection.length > 0 ? defaultAgentSelection.filter((a) => agentChoices.some((c) => c.value === a)) : []
   });
 
-  let agentBasePath = null;
-  if (agent === 'custom') {
-    const customBase = await input({
-      message: 'Base path where your repos live (e.g. ~/my-projects)',
-      default: existingAgentBasePath || ''
-    });
-    if (customBase && customBase.trim()) {
-      agentBasePath = path.resolve(expandHome(customBase.trim()));
-    }
-  } else {
-    agentBasePath = getAgentBasePath(agent);
+  if (!selectedAgentValues || selectedAgentValues.length === 0) {
+    throw new Error('At least one agent path is required.');
   }
+
+  const agents = {};
+  for (const agent of selectedAgentValues) {
+    if (agent === 'custom') {
+      const customBase = await input({
+        message: 'Base path for this custom agent (e.g. ~/my-projects)',
+        default: existingAgents?.custom || ''
+      });
+      if (customBase && customBase.trim()) {
+        agents.custom = path.resolve(expandHome(customBase.trim()));
+      }
+    } else {
+      const resolved = getAgentBasePath(agent);
+      if (resolved) agents[agent] = resolved;
+    }
+  }
+
+  if (Object.keys(agents).length === 0) {
+    throw new Error('At least one agent base path is required.');
+  }
+
+  let defaultAgent = existingDefaultAgent && agents[existingDefaultAgent]
+    ? existingDefaultAgent
+    : Object.keys(agents)[0];
+  if (Object.keys(agents).length > 1) {
+    defaultAgent = await select({
+      message: 'Default agent (used when creating new worktrees or when path cannot be inferred)',
+      choices: Object.keys(agents).map((key) => ({
+        value: key,
+        name: `${key}  →  ${agents[key]}`
+      })),
+      default: defaultAgent
+    });
+  }
+
+  const singleAgent = Object.keys(agents).length === 1 ? Object.keys(agents)[0] : null;
+  const agentBasePath = singleAgent ? agents[singleAgent] : null;
 
   // Project context: what are you working on?
   const contentType = await select({
@@ -887,8 +927,12 @@ async function runConfigInitPrompts(basePath, options = {}) {
   });
 
   const config = {
-    agent,
-    ...(agentBasePath && { agentBasePath }),
+    ...(Object.keys(agents).length > 1
+      ? { agents, defaultAgent }
+      : {
+          agent: singleAgent,
+          ...(agentBasePath && { agentBasePath })
+        }),
     wordpress: {
       contentType,
       ...(slug && { pluginSlug: slug }),

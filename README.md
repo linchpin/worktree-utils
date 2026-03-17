@@ -121,14 +121,15 @@ linchpin wt config init
 
 When run in an interactive terminal, you're guided through:
 
-1. **Plugin, theme, or wp-content** – Whether this repo is a WordPress plugin, theme, or a full wp-content project (the entire wp-content folder is the repo). You can pre-select this with `--type <plugin|theme|wp-content>`.
-2. **Slug / symlink name** – For plugins and themes, the WordPress directory name (defaults to the repo directory name). For wp-content projects, the symlink name (defaults to `wp-content`) — useful when your repo has a client name instead of `wp-content`.
-3. **Environment(s)** – For each environment: **Environment type** (Studio, LocalWP, wp-env, or Other), which sets the base folder; then for Studio/LocalWP you **pick a site** from that base (list or `fzf` if installed), or for wp-env you enter the WordPress root path; for Other you enter name and full path.
-4. Choose the **default environment** for `linchpin wt switch`.
+1. **Agents** – Which agent base path(s) you use (Conductor, Claude Code, Codex, and/or Custom Path). You can select **multiple agents** so worktrees are found whether you're under Codex, Conductor, or another path — this avoids detached-HEAD issues when switching between agents. If you pick more than one, you choose a **default agent** for new worktrees.
+2. **Plugin, theme, or wp-content** – Whether this repo is a WordPress plugin, theme, or a full wp-content project (the entire wp-content folder is the repo). You can pre-select this with `--type <plugin|theme|wp-content>`.
+3. **Slug / symlink name** – For plugins and themes, the WordPress directory name (defaults to the repo directory name). For wp-content projects, the symlink name (defaults to `wp-content`) — useful when your repo has a client name instead of `wp-content`.
+4. **Environment(s)** – For each environment: **Environment type** (Studio, LocalWP, wp-env, or Other), which sets the base folder; then for Studio/LocalWP you **pick a site** from that base (list or `fzf` if installed), or for wp-env you enter the WordPress root path; for Other you enter name and full path.
+5. Choose the **default environment** for `linchpin wt switch`.
 
 This creates `.linchpin.json`. You can edit it later if paths or environments change.
 
-5. **Create initial symlink(s)** – If the target already exists as a real folder (not a symlink), you're prompted to **back it up** (rename with `.bkp` suffix), **delete** it (with confirmation), or **skip** that environment.
+6. **Create initial symlink(s)** – If the target already exists as a real folder (not a symlink), you're prompted to **back it up** (rename with `.bkp` suffix), **delete** it (with confirmation), or **skip** that environment.
 
 If `.linchpin.json` already exists, the flow offers **Overwrite**, **Edit** (keep existing and add more environments), or **Cancel**.
 
@@ -308,6 +309,26 @@ WP-content project (repo is the entire wp-content folder):
 }
 ```
 
+Multi-agent (Codex and Conductor, etc.) — we look for worktrees in all listed paths:
+
+```json
+{
+  "agents": {
+    "codex": "~/Documents/GitHub",
+    "conductor": "~/conductor"
+  },
+  "defaultAgent": "codex",
+  "wordpress": {
+    "contentType": "plugin",
+    "pluginSlug": "my-plugin",
+    "defaultEnvironment": "studio",
+    "environments": {
+      "studio": "/Users/you/Sites/studio/wp-content/plugins/my-plugin"
+    }
+  }
+}
+```
+
 If the repo uses a custom symlink name (e.g. the repo is named after the client), add `"symlinkName"`:
 
 ```json
@@ -325,7 +346,7 @@ If the repo uses a custom symlink name (e.g. the repo is named after the client)
 
 Behavior notes:
 
-- **Agent / base path**: `agent` (Conductor, Claude Code, Codex, or Custom Path) and optional `agentBasePath` record where your worktree repos live. Default base paths: Conductor `~/conductor`, Claude Code `~/Documents`, Codex `~/Documents/GitHub`. For Custom Path you’re prompted for a base path during `config init`.
+- **Agent / base path**: You can use a single agent or **multiple agents**. Single-agent config uses `agent` (Conductor, Claude Code, Codex, or Custom Path) and optional `agentBasePath`. Multi-agent config uses `agents` (object of name → base path) and optional `defaultAgent`. Default base paths: Conductor `~/conductor`, Claude Code `~/Documents`, Codex `~/Documents/GitHub`. For Custom Path you’re prompted for a base path during `config init`. When you use multiple agents (e.g. Codex for some work and Conductor for another), we look for worktrees in all configured paths so the correct main repo is found and detached-HEAD issues are avoided.
 - If `defaultEnvironment` is omitted, the first environment key is used.
 - `~` is supported in configured paths.
 - `linchpin wt switch` without a worktree argument: in an interactive terminal you get a **picker** of available worktrees; in non-interactive use it uses the current worktree.

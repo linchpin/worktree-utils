@@ -45,6 +45,33 @@ function getAgentBasePath(agent) {
   return raw ? path.resolve(expandHome(raw)) : null;
 }
 
+/**
+ * Resolve a single agent path (preset or custom).
+ * @param {string} name - Agent key (e.g. 'codex', 'conductor', 'custom').
+ * @param {string|null} customPath - For 'custom', the user-provided path.
+ * @returns {string|null} Resolved absolute path or null.
+ */
+function resolveAgentPath(name, customPath) {
+  if (!name) return null;
+  if (name === 'custom' && customPath && customPath.trim()) {
+    return path.resolve(expandHome(customPath.trim()));
+  }
+  return getAgentBasePath(name);
+}
+
+/**
+ * All known agent base paths for scanning (e.g. finding main repo from a worktree).
+ * Used when config is not available (e.g. during inference).
+ * @returns {string[]} Absolute paths to scan.
+ */
+function getDefaultAgentScanRoots() {
+  return [
+    path.resolve(expandHome(AGENT_BASE_PATHS.conductor)),
+    path.resolve(expandHome(AGENT_BASE_PATHS['claude-code'])),
+    path.resolve(expandHome(AGENT_BASE_PATHS.codex))
+  ].filter(Boolean);
+}
+
 function normalizeConfig(input) {
   const root = input || {};
   const wp = root.wordpress || {};
@@ -68,9 +95,30 @@ function normalizeConfig(input) {
       ? root.agentBasePath.trim()
       : null;
 
+  // Multi-agent: agents = { [name]: basePath }. Backward compat: single agent + agentBasePath.
+  let agents = null;
+  if (root.agents && typeof root.agents === 'object' && Object.keys(root.agents).length > 0) {
+    agents = Object.fromEntries(
+      Object.entries(root.agents)
+        .filter(([, p]) => typeof p === 'string' && p.trim())
+        .map(([k, p]) => [k, String(p).trim()])
+    );
+    if (Object.keys(agents).length === 0) agents = null;
+  }
+  if (!agents && agent && agentBasePath) {
+    agents = { [agent]: agentBasePath };
+  }
+
+  const defaultAgent =
+    typeof root.defaultAgent === 'string' && root.defaultAgent.trim()
+      ? root.defaultAgent.trim()
+      : agents ? Object.keys(agents)[0] : null;
+
   return {
-    agent,
-    agentBasePath,
+    agent: agents && Object.keys(agents).length === 1 ? Object.keys(agents)[0] : agent,
+    agentBasePath: agents && Object.keys(agents).length === 1 ? Object.values(agents)[0] : agentBasePath,
+    agents,
+    defaultAgent: agents ? defaultAgent : null,
     wordpress: {
       pluginSlug: wp.pluginSlug || root.pluginSlug || null,
       defaultEnvironment,
@@ -134,9 +182,30 @@ function writeConfig(basePath, config, options = {}) {
     ])
   );
 
+  const hasMultipleAgents = config.agents && Object.keys(config.agents).length > 1;
+  const agentsPayload =
+    config.agents && Object.keys(config.agents).length > 0
+      ? Object.fromEntries(
+          Object.entries(config.agents).map(([k, p]) => [k, collapseHome(String(p))])
+        )
+      : undefined;
+
   const payload = {
-    ...(config.agent && { agent: config.agent }),
-    ...(config.agentBasePath && { agentBasePath: collapseHome(config.agentBasePath) }),
+    ...(hasMultipleAgents
+      ? { agents: agentsPayload, ...(config.defaultAgent && { defaultAgent: config.defaultAgent }) }
+      : config.agents && Object.keys(config.agents).length === 1
+        ? {
+            agent: Object.keys(config.agents)[0],
+            agentBasePath: collapseHome(Object.values(config.agents)[0])
+          }
+        : config.agent && config.agentBasePath
+          ? {
+              agent: config.agent,
+              agentBasePath: collapseHome(config.agentBasePath)
+            }
+          : config.agentBasePath
+            ? { agentBasePath: collapseHome(config.agentBasePath) }
+            : {}),
     wordpress: {
       pluginSlug: config.wordpress.pluginSlug,
       defaultEnvironment: config.wordpress.defaultEnvironment,
@@ -204,6 +273,18 @@ function collapseHome(inputPath) {
   return inputPath;
 }
 
+/**
+ * All resolved agent base paths from config (for discovery / scanning).
+ * @param {{ agents?: Record<string, string> }} config - Normalized config.
+ * @returns {string[]} Absolute paths.
+ */
+function getAgentBasePathsFromConfig(config) {
+  if (!config.agents || Object.keys(config.agents).length === 0) return [];
+  return Object.values(config.agents)
+    .map((p) => path.resolve(expandHome(p)))
+    .filter(Boolean);
+}
+
 module.exports = {
   AGENT_BASE_PATHS,
   AGENT_VALUES,
@@ -212,8 +293,11 @@ module.exports = {
   configPathFor,
   expandHome,
   getAgentBasePath,
+  getAgentBasePathsFromConfig,
+  getDefaultAgentScanRoots,
   normalizeConfig,
   readConfig,
+  resolveAgentPath,
   writeConfig,
   writeDefaultConfig
 };

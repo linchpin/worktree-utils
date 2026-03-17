@@ -72,3 +72,45 @@ test('writeDefaultConfig stores localwp path with ~', () => {
   fs.rmSync(tempDir, { recursive: true, force: true });
 });
 
+test('normalizeConfig accepts multi-agent agents object', () => {
+  const config = normalizeConfig({
+    wordpress: {
+      defaultEnvironment: 'studio',
+      environments: { studio: '/tmp/studio/plugin' }
+    },
+    agents: {
+      codex: '~/Documents/GitHub',
+      conductor: '~/conductor'
+    },
+    defaultAgent: 'codex'
+  });
+
+  assert.deepEqual(Object.keys(config.agents).sort(), ['codex', 'conductor']);
+  assert.equal(config.defaultAgent, 'codex');
+});
+
+test('writeConfig writes agents and defaultAgent when multiple agents', () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'linchpin-config-multi-'));
+  const home = os.homedir();
+
+  writeConfig(tempDir, {
+    agents: {
+      codex: path.join(home, 'Documents', 'GitHub'),
+      conductor: path.join(home, 'conductor')
+    },
+    defaultAgent: 'codex',
+    wordpress: {
+      pluginSlug: 'plugin',
+      defaultEnvironment: 'studio',
+      environments: { studio: '/tmp/studio/plugin' }
+    }
+  });
+
+  const saved = JSON.parse(fs.readFileSync(path.join(tempDir, '.linchpin.json'), 'utf8'));
+  assert.equal(saved.agents.codex, '~/Documents/GitHub');
+  assert.equal(saved.agents.conductor, '~/conductor');
+  assert.equal(saved.defaultAgent, 'codex');
+
+  fs.rmSync(tempDir, { recursive: true, force: true });
+});
+

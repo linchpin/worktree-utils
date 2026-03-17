@@ -1,6 +1,7 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { getDefaultAgentScanRoots } = require('./config');
 const { runCommand } = require('./shell');
 
 function parseWorktreePorcelain(input) {
@@ -233,12 +234,14 @@ function inferBaseRepoPathFromWorktreeId(startPath) {
   const parentRoot = path.dirname(path.dirname(anchor));
   const grandparentRoot = path.dirname(parentRoot);
 
+  const agentScanRoots = getDefaultAgentScanRoots();
   const directCandidates = dedupePaths([
     path.join(parentRoot, repoName),
     path.join(grandparentRoot, repoName),
     path.join(os.homedir(), 'Documents', 'GitHub', repoName),
     path.join(os.homedir(), 'Documents', repoName),
-    path.join(os.homedir(), repoName)
+    path.join(os.homedir(), repoName),
+    ...agentScanRoots.map((root) => path.join(root, repoName))
   ]);
 
   for (const candidate of directCandidates) {
@@ -251,7 +254,8 @@ function inferBaseRepoPathFromWorktreeId(startPath) {
     parentRoot,
     grandparentRoot,
     path.join(os.homedir(), 'Documents', 'GitHub'),
-    path.join(os.homedir(), 'Documents')
+    path.join(os.homedir(), 'Documents'),
+    ...agentScanRoots
   ]);
 
   for (const root of scanRoots) {
