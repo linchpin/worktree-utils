@@ -713,16 +713,6 @@ async function runConfigInitPrompts(basePath, options = {}) {
 
   const { checkbox } = await import('@inquirer/prompts');
 
-  const agentChoices = [
-    { value: 'conductor', name: 'Conductor (~/conductor)' },
-    { value: 'claude-code', name: 'Claude Code (~/Documents)' },
-    { value: 'codex', name: 'Codex (~/Documents/GitHub)' },
-    {
-      value: 'custom',
-      name: 'Custom Path (e.g. ~/my-projects — add another base directory)'
-    }
-  ];
-
   const defaultAgentSelection =
     existingAgents && Object.keys(existingAgents).length > 0
       ? Object.keys(existingAgents)
@@ -732,11 +722,21 @@ async function runConfigInitPrompts(basePath, options = {}) {
           ? [existingDefaultAgent]
           : [];
 
+  const agentChoices = [
+    { value: 'conductor', name: 'Conductor (~/conductor)', checked: defaultAgentSelection.includes('conductor') },
+    { value: 'claude-code', name: 'Claude Code (~/Documents)', checked: defaultAgentSelection.includes('claude-code') },
+    { value: 'codex', name: 'Codex (~/Documents/GitHub)', checked: defaultAgentSelection.includes('codex') },
+    {
+      value: 'custom',
+      name: 'Custom Path (e.g. ~/my-projects — add another base directory)',
+      checked: defaultAgentSelection.includes('custom')
+    }
+  ];
+
   const selectedAgentValues = await checkbox({
     message:
       'Which agents do you use? (We\'ll look for worktrees in all selected paths — e.g. Codex for some work, Conductor for another.)',
-    choices: agentChoices,
-    default: defaultAgentSelection.length > 0 ? defaultAgentSelection.filter((a) => agentChoices.some((c) => c.value === a)) : []
+    choices: agentChoices
   });
 
   if (!selectedAgentValues || selectedAgentValues.length === 0) {
